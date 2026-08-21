@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gas Test Log Generator</title>
+  <style>
+    :root { color-scheme: light; --ink:#132b3a; --blue:#12617a; --mint:#dfeeea; --paper:#f7f5ef; --line:#cfd8d5; --error:#aa3030; }
+    * { box-sizing:border-box; } body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.45 Arial,sans-serif; }
+    main { max-width:960px; margin:40px auto; padding:0 20px 48px; } h1 { font:700 34px Georgia,serif; margin-bottom:4px; } .subtitle { margin-top:0; color:#4e6870; }
+    section { background:#fff; border:1px solid var(--line); border-radius:12px; padding:24px; margin-top:20px; box-shadow:0 2px 10px #16313b0c; }
+    label { display:block; font-weight:700; margin:16px 0 6px; } input,select,button { font:inherit; } input,select { width:100%; padding:10px; border:1px solid #aebeb9; border-radius:7px; background:white; }
+    button { margin-top:22px; padding:11px 18px; color:white; background:var(--blue); border:0; border-radius:7px; cursor:pointer; font-weight:700; } button:disabled { opacity:.6; cursor:wait; }
+    #status { white-space:pre-wrap; margin-top:18px; } .error { color:var(--error); } .ok { color:#1a6d4d; } table { border-collapse:collapse; width:100%; margin-top:16px; font-size:13px; } th,td { border:1px solid var(--line); padding:6px; text-align:left; vertical-align:top; } th { background:var(--mint); } td input { border:0; padding:2px; min-width:90px; }
+    #review { display:none; overflow:auto; } .downloads a { display:inline-block; margin:10px 12px 0 0; color:var(--blue); font-weight:bold; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Gas Test Log Generator</h1>
+    <p class="subtitle">Pemrosesan PDF scan ke log Microsoft Excel</p>
+    <section>
+      <form id="upload-form">
+        <label for="test_type">Jenis pengukuran</label>
+        <select id="test_type" name="test_type">
+          {% for key, test in test_types.items() %}<option value="{{ key }}">{{ test.label }}</option>{% endfor %}
+        </select>
+        <label for="endpoint">URL DeepSeek-OCR Kaggle/ngrok</label>
+        <input id="endpoint" name="endpoint" type="url" placeholder="https://xxxx.ngrok-free.app" required>
+        <label for="pdf_files">PDF hasil scan</label>
+        <input id="pdf_files" name="pdf_files" type="file" accept="application/pdf" multiple required>
+        <button id="extract-button" type="submit">Ekstrak Data</button>
+      </form>
+      <div id="status"></div>
+    </section>
+    <section id="review">
+      <h2>Tinjau Data Sebelum Membuat Excel</h2>
+      <p>Periksa hasil pembacaan, koreksi bila diperlukan, lalu buat file Excel.</p>
+      <div id="table"></div>
+      <button id="generate-button">Buat Excel dan Grafik</button>
+      <div id="downloads" class="downloads"></div>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
