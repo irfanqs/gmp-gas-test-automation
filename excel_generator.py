@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from matplotlib.backends.backend_pdf import PdfPages
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, LineChart, Reference
@@ -14,6 +15,21 @@ from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from config import MOISTURE_LIMIT, OIL_LIMIT, PARTICLE_LIMITS, TEST_TYPES
+
+
+def _configure_korean_font():
+    """Use an installed Korean font for PNG/PDF exports when one is available."""
+    for family in ("Apple SD Gothic Neo", "Malgun Gothic", "NanumGothic", "Noto Sans CJK KR"):
+        try:
+            font_manager.findfont(family, fallback_to_default=False)
+            plt.rcParams["font.family"] = family
+            plt.rcParams["axes.unicode_minus"] = False
+            return
+        except ValueError:
+            continue
+
+
+_configure_korean_font()
 
 RED = PatternFill("solid", fgColor="FF9999")
 BLUE = PatternFill("solid", fgColor="D9EAF7")
