@@ -43,6 +43,8 @@ document.querySelector('#generate-button').addEventListener('click', async () =>
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
     document.querySelector('#downloads').innerHTML = `<a href="${data.excel_url}">Unduh Excel</a><a href="${data.pdf_url}">Unduh Grafik PDF</a>${data.charts.map(chart => `<a href="${chart.png_url}">Unduh ${escapeHtml(chart.label)} JPG</a>`).join('')}`;
+    statusBox.className = 'ok';
+    statusBox.textContent = `Excel dibuat. Total data tersimpan untuk jenis pengukuran ini: ${data.total_records} baris.`;
   } catch (error) { statusBox.className = 'error'; statusBox.textContent = error.message; }
   finally { button.disabled = false; }
 });

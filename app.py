@@ -10,6 +10,7 @@ from config import MAX_UPLOAD_BYTES, OUTPUT_DIR, TEST_TYPES, UPLOAD_DIR
 from deepseek_client import ocr_pdf
 from excel_generator import generate_workbook
 from parsers import parse_document
+from storage import save_and_load
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
@@ -68,7 +69,8 @@ def generate():
         return jsonify(error="Data untuk pembuatan Excel tidak valid."), 400
 
     job_id = uuid.uuid4().hex
-    result = generate_workbook(test_type, records, OUTPUT_DIR, job_id)
+    all_records = save_and_load(test_type, records)
+    result = generate_workbook(test_type, all_records, OUTPUT_DIR, job_id)
     return jsonify(
         excel_url=f"/download/{result['excel'].name}",
         charts=[
@@ -76,6 +78,7 @@ def generate():
             for chart in result["charts"]
         ],
         pdf_url=f"/download/{result['pdf'].name}",
+        total_records=len(all_records),
     )
 
 
