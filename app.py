@@ -3,12 +3,13 @@ import shutil
 import uuid
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename
 
 from config import MAX_UPLOAD_BYTES, OUTPUT_DIR, TEST_TYPES, UPLOAD_DIR
 from deepseek_client import ocr_pdf
 from excel_generator import generate_workbook
+from online_client import ocr_pdf as online_ocr_pdf
 from parsers import parse_document
 from storage import save_and_load
 
@@ -20,18 +21,34 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 @app.get("/")
 def index():
-    return render_template("index.html", test_types=TEST_TYPES)
+    return redirect(url_for("online"))
+
+
+@app.get("/online")
+def online():
+    return render_template("index.html", test_types=TEST_TYPES, ocr_mode="online")
+
+
+@app.get("/offline")
+def offline():
+    return render_template("index.html", test_types=TEST_TYPES, ocr_mode="offline")
 
 
 @app.post("/extract")
 def extract():
     test_type = request.form.get("test_type")
+    ocr_mode = request.form.get("ocr_mode", "offline")
     endpoint = request.form.get("endpoint", "").strip()
+    api_key = request.form.get("api_key", "").strip()
     files = request.files.getlist("pdf_files")
     if test_type not in TEST_TYPES:
         return jsonify(error="Jenis pengukuran tidak valid."), 400
-    if not endpoint:
+    if ocr_mode not in ("online", "offline"):
+        return jsonify(error="Mode OCR tidak valid."), 400
+    if ocr_mode == "offline" and not endpoint:
         return jsonify(error="URL endpoint DeepSeek-OCR diperlukan."), 400
+    if ocr_mode == "online" and not api_key:
+        return jsonify(error="Anthropic API Key diperlukan."), 400
     if not files or all(not file.filename for file in files):
         return jsonify(error="Pilih minimal satu PDF."), 400
 
@@ -48,7 +65,7 @@ def extract():
             path = job_dir / secure_filename(upload.filename)
             upload.save(path)
             try:
-                pages = ocr_pdf(path, endpoint)
+                pages = online_ocr_pdf(path, test_type, api_key) if ocr_mode == "online" else ocr_pdf(path, endpoint)
                 records.extend(parse_document(test_type, pages, upload.filename))
             except Exception as error:
                 errors.append(f"{upload.filename}: {error}")

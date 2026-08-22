@@ -18,15 +18,22 @@
 <body>
   <main>
     <h1>Gas Test Log Generator</h1>
-    <p class="subtitle">Pemrosesan PDF scan ke log Microsoft Excel</p>
+    <p class="subtitle">{{ 'Online OCR' if ocr_mode == 'online' else 'Offline OCR' }} · Pemrosesan PDF scan ke log Microsoft Excel</p>
+    <p><a href="{{ url_for('online') }}">Online OCR</a> | <a href="{{ url_for('offline') }}">Offline OCR</a></p>
     <section>
       <form id="upload-form">
+        <input type="hidden" id="ocr_mode" name="ocr_mode" value="{{ ocr_mode }}">
         <label for="test_type">Jenis pengukuran</label>
         <select id="test_type" name="test_type">
           {% for key, test in test_types.items() %}<option value="{{ key }}">{{ test.label }}</option>{% endfor %}
         </select>
+        {% if ocr_mode == 'online' %}
+        <label for="api_key">Anthropic API Key</label>
+        <input id="api_key" name="api_key" type="password" placeholder="sk-ant-..." required>
+        {% else %}
         <label for="endpoint">URL DeepSeek-OCR Kaggle/ngrok</label>
         <input id="endpoint" name="endpoint" type="url" placeholder="https://xxxx.ngrok-free.app" required>
+        {% endif %}
         <label for="pdf_files">PDF hasil scan</label>
         <input id="pdf_files" name="pdf_files" type="file" accept="application/pdf" multiple required>
         <button id="extract-button" type="submit">Ekstrak Data</button>

@@ -4,10 +4,10 @@ Web app Python untuk mengubah PDF scan Oil Content Measurement, Moisture Content
 
 ## Cara Menjalankan
 
-1. Jalankan DeepSeek-OCR di Kaggle dan buat ngrok endpoint dengan server yang telah Anda siapkan.
+1. Untuk `/offline`, jalankan DeepSeek-OCR di Kaggle dan buat ngrok endpoint dengan server yang telah Anda siapkan. Untuk `/online`, siapkan Anthropic API Key.
 2. Jalankan `START_MAC.sh` pada macOS atau `START_WINDOWS.bat` pada Windows.
 3. Browser akan membuka `http://127.0.0.1:5001`.
-4. Pilih jenis pengukuran, masukkan URL ngrok, lalu unggah satu atau beberapa PDF yang sejenis.
+4. Buka `/offline` untuk URL ngrok DeepSeek atau `/online` untuk Anthropic API Key, pilih jenis pengukuran, lalu unggah satu atau beberapa PDF yang sejenis.
 5. Tinjau dan koreksi hasil ekstraksi sebelum memilih **Buat Excel dan Grafik**.
 
 ## Data dan Privasi
