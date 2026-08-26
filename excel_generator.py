@@ -12,6 +12,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, LineChart, Reference
 from openpyxl.chart.label import DataLabelList
+from openpyxl.chart.data_source import AxDataSource, StrData, StrRef, StrVal
+from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from config import MOISTURE_LIMIT, OIL_LIMIT, PARTICLE_LIMITS, TEST_TYPES
@@ -114,6 +116,24 @@ def _round_up(value, unit):
     return max(unit, math.ceil(value / unit) * unit)
 
 
+def _chart_major_unit(y_max):
+    """Use a small number of clean grid intervals instead of dense black lines."""
+    if y_max <= 1:
+        return 0.2
+    magnitude = 10 ** math.floor(math.log10(y_max))
+    return max(magnitude / 10, math.ceil((y_max / 5) / (magnitude / 10)) * (magnitude / 10))
+
+
+def _set_string_categories(chart, ws, first_row, last_row):
+    """Assign cached string labels so Excel renders categories on combo charts."""
+    formula = f"'{ws.title}'!$A${first_row}:$A${last_row}"
+    points = [StrVal(idx=index, v=str(ws.cell(row, 1).value or "")) for index, row in enumerate(range(first_row, last_row + 1))]
+    category = AxDataSource(strRef=StrRef(f=formula, strCache=StrData(ptCount=len(points), pt=points)))
+    for chart_part in chart._charts:
+        for series in chart_part.series:
+            series.cat = category
+
+
 def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_max, y_axis_title):
     """Write chart source data and add a clustered column chart with limit lines."""
     start = 3
@@ -132,8 +152,12 @@ def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_
             ws.cell(row_index, offset, values[(category, date)])
         for offset, (_, limit) in enumerate(limits, start=limit_start):
             ws.cell(row_index, offset, limit)
+        ws.row_dimensions[row_index].height = 30
 
     data_end = start + len(categories)
+    ws.column_dimensions["A"].width = 38
+    for column in range(2, limit_start + len(limits)):
+        ws.column_dimensions[get_column_letter(column)].width = 16
     bar = BarChart()
     bar.type = "col"
     bar.grouping = "clustered"
@@ -142,19 +166,18 @@ def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_
     bar.width = min(24, max(16, 10 + len(categories) * 1.6))
     bar.y_axis.scaling.min = 0
     bar.y_axis.scaling.max = y_max
-    bar.x_axis.title = "측정 위치 / 관리번호"
-    bar.y_axis.title = y_axis_title
+    bar.y_axis.majorUnit = _chart_major_unit(y_max)
+    bar.y_axis.majorGridlines = None
+    bar.x_axis.tickLblPos = "low"
     bar.legend.position = "r"
     if dates:
         bar.add_data(Reference(ws, min_col=2, max_col=1 + len(dates), min_row=start, max_row=data_end), titles_from_data=True)
-        bar.set_categories(Reference(ws, min_col=1, min_row=start + 1, max_row=data_end))
 
     if limits:
         line = LineChart()
         line.height = bar.height
         line.width = bar.width
         line.add_data(Reference(ws, min_col=limit_start, max_col=limit_start + len(limits) - 1, min_row=start, max_row=data_end), titles_from_data=True)
-        line.set_categories(Reference(ws, min_col=1, min_row=start + 1, max_row=data_end))
         colors = ["E67E22", "C00000", "C07000", "375623", "7030A0"]
         for index, series in enumerate(line.series):
             series.graphicalProperties.line.solidFill = colors[index % len(colors)]
@@ -164,6 +187,7 @@ def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_
     # openpyxl can reset dimensions while combining charts; set them last.
     bar.height = 11
     bar.width = min(24, max(16, 10 + len(categories) * 1.6))
+    _set_string_categories(bar, ws, start + 1, data_end)
     ws.add_chart(bar, chart_row)
     for column in range(1, limit_start + len(limits)):
         ws.cell(start, column).font = Font(bold=True)
