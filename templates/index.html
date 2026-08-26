@@ -1,52 +1,99 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gas Test Log Generator</title>
+  <title>GMP Gas Test Automation</title>
   <style>
-    :root { color-scheme: light; --ink:#132b3a; --blue:#12617a; --mint:#dfeeea; --paper:#f7f5ef; --line:#cfd8d5; --error:#aa3030; }
-    * { box-sizing:border-box; } body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.45 Arial,sans-serif; }
-    main { max-width:960px; margin:40px auto; padding:0 20px 48px; } h1 { font:700 34px Georgia,serif; margin-bottom:4px; } .subtitle { margin-top:0; color:#4e6870; }
-    section { background:#fff; border:1px solid var(--line); border-radius:12px; padding:24px; margin-top:20px; box-shadow:0 2px 10px #16313b0c; }
-    label { display:block; font-weight:700; margin:16px 0 6px; } input,select,button { font:inherit; } input,select { width:100%; padding:10px; border:1px solid #aebeb9; border-radius:7px; background:white; }
-    button { margin-top:22px; padding:11px 18px; color:white; background:var(--blue); border:0; border-radius:7px; cursor:pointer; font-weight:700; } button:disabled { opacity:.6; cursor:wait; }
-    #status { white-space:pre-wrap; margin-top:18px; } .error { color:var(--error); } .ok { color:#1a6d4d; } table { border-collapse:collapse; width:100%; margin-top:16px; font-size:13px; } th,td { border:1px solid var(--line); padding:6px; text-align:left; vertical-align:top; } th { background:var(--mint); } td input { border:0; padding:2px; min-width:90px; }
-    #review { display:none; overflow:auto; } .downloads a { display:inline-block; margin:10px 12px 0 0; color:var(--blue); font-weight:bold; }
+    :root { --forest:#123d32; --green:#1b6b55; --leaf:#2d8a68; --mint:#e6f3ed; --pale:#f5faf7; --ink:#16332a; --muted:#60776e; --line:#c9dbd2; --danger:#b73c3c; --radius:14px; }
+    * { box-sizing:border-box; } body { margin:0; min-height:100dvh; color:var(--ink); background:linear-gradient(135deg,#eff7f2 0%,#f8fbf9 48%,#e7f2ec 100%); font:15px/1.5 "Apple SD Gothic Neo","Malgun Gothic","Segoe UI",Arial,sans-serif; }
+    .shell { width:min(1120px,calc(100% - 32px)); margin:0 auto; padding:26px 0 52px; }
+    .topbar { min-height:56px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding-bottom:26px; }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:800; letter-spacing:-.02em; color:var(--forest); } .brand-mark { width:32px; height:32px; display:grid; place-items:center; border:1px solid #80b6a0; border-radius:10px; background:var(--mint); font-size:17px; }
+    .language { display:flex; gap:3px; padding:3px; border:1px solid var(--line); border-radius:10px; background:#fff; } .language button { padding:5px 9px; border:0; border-radius:7px; color:var(--muted); background:transparent; cursor:pointer; font-size:12px; font-weight:700; } .language button.active { color:#fff; background:var(--green); }
+    .hero { display:grid; grid-template-columns:minmax(0,1fr) 275px; gap:24px; align-items:end; padding:30px 32px; border-radius:var(--radius); color:#effbf5; background:linear-gradient(132deg,#123d32,#1d6954); box-shadow:0 18px 38px #164d3a25; }
+    .eyebrow { margin:0 0 8px; color:#9fd6bc; font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; } h1 { margin:0; font-size:clamp(28px,4vw,44px); line-height:1.08; letter-spacing:-.04em; } .hero p:last-child { margin:10px 0 0; max-width:58ch; color:#cce5d8; }
+    .mode-card { padding:17px; border:1px solid #78a995; border-radius:12px; background:#ffffff10; } .mode-card span { display:block; color:#a8dac2; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; } .mode-card strong { display:block; margin:3px 0 12px; font-size:18px; } .mode-card a { display:inline-block; color:#fff; font-weight:700; text-decoration:none; }
+    .workflow { display:grid; grid-template-columns:210px minmax(0,1fr); gap:22px; margin-top:24px; }
+    .rail { align-self:start; padding:18px 0; } .rail-item { display:flex; align-items:flex-start; gap:11px; padding:0 10px 18px; color:#6c8178; } .rail-number { display:grid; flex:0 0 25px; width:25px; height:25px; place-items:center; border:1px solid #a9c9b9; border-radius:50%; color:var(--green); background:#fff; font-size:12px; font-weight:800; } .rail-item:first-child .rail-number { color:#fff; border-color:var(--green); background:var(--green); } .rail-item strong { display:block; color:var(--ink); font-size:13px; } .rail-item small { display:block; margin-top:1px; font-size:12px; line-height:1.3; }
+    .panel { padding:27px; border:1px solid #d5e4dc; border-radius:var(--radius); background:#fff; box-shadow:0 10px 30px #183c2d0b; } .panel + .panel { margin-top:16px; } .panel-header { display:flex; justify-content:space-between; gap:12px; margin-bottom:19px; } .panel-header h2 { margin:0; font-size:18px; letter-spacing:-.02em; } .panel-header p { margin:3px 0 0; color:var(--muted); font-size:13px; }
+    .field { margin-top:15px; } label { display:block; margin-bottom:6px; color:#294a3d; font-size:13px; font-weight:800; } input { width:100%; padding:11px 12px; border:1px solid #b8cfc3; border-radius:9px; color:var(--ink); background:#fff; font:inherit; outline:none; } input:focus { border-color:var(--leaf); box-shadow:0 0 0 3px #2d8a681a; }
+    .helper { margin:7px 0 0; color:var(--muted); font-size:12px; } .test-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; } .test-choice { position:relative; } .test-choice input { position:absolute; opacity:0; pointer-events:none; } .test-choice label { min-height:108px; margin:0; padding:15px; border:1px solid var(--line); border-radius:11px; cursor:pointer; background:#fbfdfc; transition:transform .16s ease,border-color .16s ease,background .16s ease; } .test-choice label:hover { border-color:#82b8a0; transform:translateY(-1px); } .test-choice input:checked + label { border-color:var(--green); box-shadow:inset 0 0 0 1px var(--green); background:var(--mint); } .choice-index { display:block; color:var(--leaf); font-size:11px; font-weight:800; letter-spacing:.09em; } .choice-title { display:block; margin-top:5px; font-size:14px; } .choice-copy { display:block; margin-top:4px; color:var(--muted); font-size:12px; font-weight:400; }
+    .dropzone { display:grid; place-items:center; min-height:150px; padding:22px; border:1.5px dashed #8dbba5; border-radius:12px; color:var(--muted); background:var(--pale); text-align:center; cursor:pointer; transition:.16s ease; } .dropzone:hover,.dropzone.dragover { border-color:var(--green); color:var(--green); background:var(--mint); } .drop-icon { display:grid; place-items:center; width:38px; height:38px; margin-bottom:9px; border-radius:11px; color:#fff; background:var(--green); font-weight:800; } .dropzone strong { color:var(--ink); } .file-meta { min-height:20px; margin-top:10px; color:var(--muted); font-size:12px; }
+    .primary { display:inline-flex; align-items:center; justify-content:center; min-width:180px; margin-top:20px; padding:12px 18px; border:0; border-radius:9px; color:#fff; background:var(--green); box-shadow:0 5px 12px #1b6b5530; cursor:pointer; font:inherit; font-weight:800; transition:transform .14s ease,background .14s ease; } .primary:hover { background:#145a47; } .primary:active { transform:translateY(1px) scale(.99); } .primary:disabled { cursor:wait; opacity:.6; }
+    #status { margin-top:17px; white-space:pre-wrap; color:var(--muted); } #status.error { padding:11px; border-radius:9px; color:#8e2525; background:#fff1f1; } #status.ok { padding:11px; border-radius:9px; color:#175c46; background:#ebf7f0; }
+    #review { display:none; overflow:auto; } table { width:100%; min-width:740px; border-collapse:collapse; font-size:12px; } th,td { padding:7px; border:1px solid #d5e4dc; text-align:left; vertical-align:top; } th { color:#214a3b; background:var(--mint); } td input { min-width:105px; padding:3px; border:0; border-radius:0; font-size:12px; } .downloads { margin-top:16px; } .downloads a { display:inline-block; margin:8px 10px 0 0; color:var(--green); font-size:13px; font-weight:800; text-decoration:none; } .downloads a:hover { text-decoration:underline; }
+    @media (max-width:800px) { .hero,.workflow { grid-template-columns:1fr; } .rail { display:flex; overflow-x:auto; padding:0; } .rail-item { min-width:146px; padding:8px; } .test-grid { grid-template-columns:1fr; } .shell { width:min(100% - 24px,1120px); } .hero,.panel { padding:22px; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; } }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Gas Test Log Generator</h1>
-    <p class="subtitle">{{ 'Online OCR' if ocr_mode == 'online' else 'Offline OCR' }} · Pemrosesan PDF scan ke log Microsoft Excel</p>
-    <p><a href="{{ url_for('online') }}">Online OCR</a> | <a href="{{ url_for('offline') }}">Offline OCR</a></p>
-    <section>
-      <form id="upload-form">
-        <input type="hidden" id="ocr_mode" name="ocr_mode" value="{{ ocr_mode }}">
-        <label for="test_type">Jenis pengukuran</label>
-        <select id="test_type" name="test_type">
-          {% for key, test in test_types.items() %}<option value="{{ key }}">{{ test.label }}</option>{% endfor %}
-        </select>
-        {% if ocr_mode == 'online' %}
-        <label for="api_key">Anthropic API Key</label>
-        <input id="api_key" name="api_key" type="password" placeholder="sk-ant-..." required>
-        {% else %}
-        <label for="endpoint">URL DeepSeek-OCR Kaggle/ngrok</label>
-        <input id="endpoint" name="endpoint" type="url" placeholder="https://xxxx.ngrok-free.app" required>
-        {% endif %}
-        <label for="pdf_files">PDF hasil scan</label>
-        <input id="pdf_files" name="pdf_files" type="file" accept="application/pdf" multiple required>
-        <button id="extract-button" type="submit">Ekstrak Data</button>
-      </form>
-      <div id="status"></div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">G</span><span>GMP Automation</span></div>
+      <div class="language" aria-label="Language selector"><button class="active" type="button" data-language="en">EN</button><button type="button" data-language="ko">한국어</button></div>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow" data-i18n="eyebrow">Environmental monitoring</p>
+        <h1 data-i18n="headline">Turn scanned gas tests into controlled records.</h1>
+        <p data-i18n="subheadline">Review extracted values, then generate traceable Excel logs and charts for cleanroom monitoring.</p>
+      </div>
+      <aside class="mode-card">
+        <span data-i18n="modeLabel">Current workflow</span>
+        <strong>{{ 'Online OCR' if ocr_mode == 'online' else 'Offline OCR' }}</strong>
+        {% if ocr_mode == 'online' %}<a href="{{ url_for('offline') }}" data-i18n="switchOffline">Use Offline OCR</a>{% else %}<a href="{{ url_for('online') }}" data-i18n="switchOnline">Use Online OCR</a>{% endif %}
+      </aside>
     </section>
-    <section id="review">
-      <h2>Tinjau Data Sebelum Membuat Excel</h2>
-      <p>Periksa hasil pembacaan, koreksi bila diperlukan, lalu buat file Excel.</p>
-      <div id="table"></div>
-      <button id="generate-button">Buat Excel dan Grafik</button>
-      <div id="downloads" class="downloads"></div>
-    </section>
+
+    <div class="workflow">
+      <aside class="rail" aria-label="Workflow steps">
+        <div class="rail-item"><span class="rail-number">1</span><div><strong data-i18n="railOne">Configure</strong><small data-i18n="railOneCopy">Set OCR connection</small></div></div>
+        <div class="rail-item"><span class="rail-number">2</span><div><strong data-i18n="railTwo">Select test</strong><small data-i18n="railTwoCopy">Choose one measurement</small></div></div>
+        <div class="rail-item"><span class="rail-number">3</span><div><strong data-i18n="railThree">Upload</strong><small data-i18n="railThreeCopy">Add scanned PDFs</small></div></div>
+        <div class="rail-item"><span class="rail-number">4</span><div><strong data-i18n="railFour">Review</strong><small data-i18n="railFourCopy">Generate controlled logs</small></div></div>
+      </aside>
+
+      <div>
+        <form id="upload-form">
+          <input type="hidden" name="ocr_mode" value="{{ ocr_mode }}">
+          <section class="panel">
+            <div class="panel-header"><div><h2 data-i18n="connectionTitle">1. OCR Connection</h2><p data-i18n="connectionCopy">Enter the connection used to read scanned forms.</p></div></div>
+            {% if ocr_mode == 'online' %}
+            <div class="field"><label for="api_key" data-i18n="apiLabel">Anthropic API Key</label><input id="api_key" name="api_key" type="password" placeholder="sk-ant-..." required><p class="helper" data-i18n="apiHelp">Your key is used only for this processing request.</p></div>
+            {% else %}
+            <div class="field"><label for="endpoint" data-i18n="endpointLabel">DeepSeek-OCR Endpoint</label><input id="endpoint" name="endpoint" type="url" placeholder="https://xxxx.ngrok-free.app" required><p class="helper" data-i18n="endpointHelp">Paste the active Kaggle/ngrok endpoint URL.</p></div>
+            {% endif %}
+          </section>
+
+          <section class="panel">
+            <div class="panel-header"><div><h2 data-i18n="testTitle">2. Measurement Type</h2><p data-i18n="testCopy">Upload PDFs from one measurement type at a time.</p></div></div>
+            <div class="test-grid">
+              <div class="test-choice"><input id="oil" name="test_type" type="radio" value="oil" required><label for="oil"><span class="choice-index">01</span><span class="choice-title" data-i18n="oilTitle">Oil Content</span><span class="choice-copy" data-i18n="oilCopy">유분 측정 일지</span></label></div>
+              <div class="test-choice"><input id="moisture" name="test_type" type="radio" value="moisture"><label for="moisture"><span class="choice-index">02</span><span class="choice-title" data-i18n="moistureTitle">Moisture Content</span><span class="choice-copy" data-i18n="moistureCopy">수분 측정 일지</span></label></div>
+              <div class="test-choice"><input id="airborne" name="test_type" type="radio" value="airborne"><label for="airborne"><span class="choice-index">03</span><span class="choice-title" data-i18n="airborneTitle">Airborne Particle</span><span class="choice-copy" data-i18n="airborneCopy">부유입자 측정 일지</span></label></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header"><div><h2 data-i18n="uploadTitle">3. Scanned PDFs</h2><p data-i18n="uploadCopy">Multiple files are allowed. Data from future uploads is added to the same local log.</p></div></div>
+            <label class="dropzone" id="dropzone" for="pdf_files"><span class="drop-icon">PDF</span><strong data-i18n="dropTitle">Choose PDF files or drop them here</strong><span data-i18n="dropCopy">Only scanned measurement documents are supported.</span></label>
+            <input id="pdf_files" name="pdf_files" type="file" accept="application/pdf" multiple required hidden>
+            <div class="file-meta" id="file-meta" data-i18n="noFiles">No files selected.</div>
+            <button class="primary" id="extract-button" type="submit" data-i18n="extract">Extract Data</button>
+            <div id="status" aria-live="polite"></div>
+          </section>
+        </form>
+
+        <section class="panel" id="review">
+          <div class="panel-header"><div><h2 data-i18n="reviewTitle">4. Review Before Export</h2><p data-i18n="reviewCopy">Correct any uncertain OCR value before creating the final log.</p></div></div>
+          <div id="table"></div>
+          <button class="primary" id="generate-button" type="button" data-i18n="generate">Generate Excel and Charts</button>
+          <div id="downloads" class="downloads"></div>
+        </section>
+      </div>
+    </div>
   </main>
   <script src="/static/app.js"></script>
 </body>

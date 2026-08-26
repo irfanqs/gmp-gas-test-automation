@@ -1,50 +1,32 @@
 let records = [];
+let language = localStorage.getItem('gmp-language') || 'en';
+
+const copy = {
+  en: { eyebrow:'Environmental monitoring', headline:'Turn scanned gas tests into controlled records.', subheadline:'Review extracted values, then generate traceable Excel logs and charts for cleanroom monitoring.', modeLabel:'Current workflow', switchOffline:'Use Offline OCR', switchOnline:'Use Online OCR', railOne:'Configure', railOneCopy:'Set OCR connection', railTwo:'Select test', railTwoCopy:'Choose one measurement', railThree:'Upload', railThreeCopy:'Add scanned PDFs', railFour:'Review', railFourCopy:'Generate controlled logs', connectionTitle:'1. OCR Connection', connectionCopy:'Enter the connection used to read scanned forms.', apiLabel:'Anthropic API Key', apiHelp:'Your key is used only for this processing request.', endpointLabel:'DeepSeek-OCR Endpoint', endpointHelp:'Paste the active Kaggle/ngrok endpoint URL.', testTitle:'2. Measurement Type', testCopy:'Upload PDFs from one measurement type at a time.', oilTitle:'Oil Content', oilCopy:'Oil content measurement log', moistureTitle:'Moisture Content', moistureCopy:'Moisture content measurement log', airborneTitle:'Airborne Particle', airborneCopy:'Airborne particle measurement log', uploadTitle:'3. Scanned PDFs', uploadCopy:'Multiple files are allowed. Future uploads are added to the same local log.', dropTitle:'Choose PDF files or drop them here', dropCopy:'Only scanned measurement documents are supported.', noFiles:'No files selected.', extract:'Extract Data', reviewTitle:'4. Review Before Export', reviewCopy:'Correct any uncertain OCR value before creating the final log.', generate:'Generate Excel and Charts', extracting:'Reading scanned forms. Please wait...', extracted:'{count} record(s) extracted.', generating:'Generating Excel and charts...', generated:'Excel created. Total records saved for this measurement type: {count}.', downloadExcel:'Download Excel', downloadPdf:'Download Chart PDF', downloadPng:'Download {name} JPG' },
+  ko: { eyebrow:'환경 모니터링', headline:'스캔된 가스 시험 결과를 관리 가능한 기록으로 변환합니다.', subheadline:'추출된 값을 검토한 후 클린룸 모니터링을 위한 Excel 기록과 차트를 생성합니다.', modeLabel:'현재 워크플로', switchOffline:'오프라인 OCR 사용', switchOnline:'온라인 OCR 사용', railOne:'연결 설정', railOneCopy:'OCR 연결 설정', railTwo:'시험 선택', railTwoCopy:'측정 종류 선택', railThree:'업로드', railThreeCopy:'스캔 PDF 추가', railFour:'검토', railFourCopy:'관리 기록 생성', connectionTitle:'1. OCR 연결', connectionCopy:'스캔 양식을 읽는 데 사용할 연결 정보를 입력하세요.', apiLabel:'Anthropic API Key', apiHelp:'키는 현재 처리 요청에만 사용됩니다.', endpointLabel:'DeepSeek-OCR Endpoint', endpointHelp:'활성화된 Kaggle/ngrok endpoint URL을 붙여 넣으세요.', testTitle:'2. 측정 종류', testCopy:'한 번에 한 가지 측정 종류의 PDF만 업로드하세요.', oilTitle:'유분 측정', oilCopy:'유분 측정 일지', moistureTitle:'수분 측정', moistureCopy:'수분 측정 일지', airborneTitle:'부유입자 측정', airborneCopy:'부유입자 측정 일지', uploadTitle:'3. 스캔 PDF', uploadCopy:'여러 파일을 업로드할 수 있습니다. 이후 업로드 데이터는 같은 로컬 로그에 추가됩니다.', dropTitle:'PDF 파일을 선택하거나 이곳에 놓으세요', dropCopy:'스캔된 측정 문서만 지원합니다.', noFiles:'선택된 파일이 없습니다.', extract:'데이터 추출', reviewTitle:'4. 내보내기 전 검토', reviewCopy:'최종 로그를 만들기 전에 불확실한 OCR 값을 수정하세요.', generate:'Excel 및 차트 생성', extracting:'스캔 양식을 읽는 중입니다. 잠시 기다려 주세요...', extracted:'{count}개 기록을 추출했습니다.', generating:'Excel과 차트를 생성하는 중입니다...', generated:'Excel이 생성되었습니다. 이 측정 종류에 저장된 총 기록: {count}개.', downloadExcel:'Excel 다운로드', downloadPdf:'차트 PDF 다운로드', downloadPng:'{name} JPG 다운로드' }
+};
+
 const form = document.querySelector('#upload-form');
 const statusBox = document.querySelector('#status');
 const review = document.querySelector('#review');
 const tableBox = document.querySelector('#table');
+const fileInput = document.querySelector('#pdf_files');
+const dropzone = document.querySelector('#dropzone');
+const translate = (key, params = {}) => Object.entries(params).reduce((text, [name, value]) => text.replace(`{${name}}`, value), copy[language][key] || key);
 
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
-}
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char])); }
+function setLanguage(nextLanguage) { language = nextLanguage; localStorage.setItem('gmp-language', language); document.documentElement.lang = language; document.querySelectorAll('[data-i18n]').forEach(node => { node.textContent = translate(node.dataset.i18n); }); document.querySelectorAll('[data-language]').forEach(button => button.classList.toggle('active', button.dataset.language === language)); updateFiles(); }
+function updateFiles() { const files = [...fileInput.files]; document.querySelector('#file-meta').textContent = files.length ? files.map(file => file.name).join(' · ') : translate('noFiles'); }
+function renderTable() { if (!records.length) return; const columns = Object.keys(records[0]); tableBox.innerHTML = `<table><thead><tr>${columns.map(column => `<th>${escapeHtml(column)}</th>`).join('')}</tr></thead><tbody>${records.map((row, index) => `<tr>${columns.map(column => `<td><input data-row="${index}" data-column="${escapeHtml(column)}" value="${escapeHtml(row[column])}"></td>`).join('')}</tr>`).join('')}</tbody></table>`; tableBox.querySelectorAll('input').forEach(input => input.addEventListener('input', event => { records[Number(event.target.dataset.row)][event.target.dataset.column] = event.target.value; })); }
 
-function renderTable() {
-  if (!records.length) return;
-  const columns = Object.keys(records[0]);
-  tableBox.innerHTML = `<table><thead><tr>${columns.map(column => `<th>${escapeHtml(column)}</th>`).join('')}</tr></thead><tbody>${records.map((row, index) => `<tr>${columns.map(column => `<td><input data-row="${index}" data-column="${escapeHtml(column)}" value="${escapeHtml(row[column])}"></td>`).join('')}</tr>`).join('')}</tbody></table>`;
-  tableBox.querySelectorAll('input').forEach(input => input.addEventListener('input', event => {
-    records[Number(event.target.dataset.row)][event.target.dataset.column] = event.target.value;
-  }));
-}
+document.querySelectorAll('[data-language]').forEach(button => button.addEventListener('click', () => setLanguage(button.dataset.language)));
+fileInput.addEventListener('change', updateFiles);
+['dragenter','dragover'].forEach(eventName => dropzone.addEventListener(eventName, event => { event.preventDefault(); dropzone.classList.add('dragover'); }));
+['dragleave','drop'].forEach(eventName => dropzone.addEventListener(eventName, event => { event.preventDefault(); dropzone.classList.remove('dragover'); }));
+dropzone.addEventListener('drop', event => { fileInput.files = event.dataTransfer.files; updateFiles(); });
 
-form.addEventListener('submit', async event => {
-  event.preventDefault();
-  const button = document.querySelector('#extract-button');
-  button.disabled = true;
-  statusBox.className = '';
-  statusBox.textContent = 'Mengirim PDF ke DeepSeek-OCR dan membaca formulir...';
-  try {
-    const response = await fetch('/extract', { method:'POST', body:new FormData(form) });
-    const data = await response.json();
-    if (!response.ok) throw new Error([data.error, ...(data.details || [])].filter(Boolean).join('\n'));
-    records = data.records;
-    statusBox.className = 'ok';
-    statusBox.textContent = `${records.length} baris berhasil diekstrak.${data.warnings.length ? `\nPeringatan:\n${data.warnings.join('\n')}` : ''}`;
-    renderTable(); review.style.display = 'block';
-  } catch (error) { statusBox.className = 'error'; statusBox.textContent = error.message; }
-  finally { button.disabled = false; }
-});
+form.addEventListener('submit', async event => { event.preventDefault(); const button = document.querySelector('#extract-button'); button.disabled = true; statusBox.className = ''; statusBox.textContent = translate('extracting'); try { const response = await fetch('/extract', { method:'POST', body:new FormData(form) }); const data = await response.json(); if (!response.ok) throw new Error([data.error, ...(data.details || [])].filter(Boolean).join('\n')); records = data.records; statusBox.className = 'ok'; statusBox.textContent = `${translate('extracted', { count:records.length })}${data.warnings.length ? `\n${data.warnings.join('\n')}` : ''}`; renderTable(); review.style.display = 'block'; review.scrollIntoView({ behavior:'smooth', block:'start' }); } catch (error) { statusBox.className = 'error'; statusBox.textContent = error.message; } finally { button.disabled = false; } });
 
-document.querySelector('#generate-button').addEventListener('click', async () => {
-  const button = document.querySelector('#generate-button');
-  button.disabled = true;
-  try {
-    const response = await fetch('/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({test_type:document.querySelector('#test_type').value, records}) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error);
-    document.querySelector('#downloads').innerHTML = `<a href="${data.excel_url}">Unduh Excel</a><a href="${data.pdf_url}">Unduh Grafik PDF</a>${data.charts.map(chart => `<a href="${chart.png_url}">Unduh ${escapeHtml(chart.label)} JPG</a>`).join('')}`;
-    statusBox.className = 'ok';
-    statusBox.textContent = `Excel dibuat. Total data tersimpan untuk jenis pengukuran ini: ${data.total_records} baris.`;
-  } catch (error) { statusBox.className = 'error'; statusBox.textContent = error.message; }
-  finally { button.disabled = false; }
-});
+document.querySelector('#generate-button').addEventListener('click', async () => { const button = document.querySelector('#generate-button'); const selectedTest = document.querySelector('input[name="test_type"]:checked'); if (!selectedTest) return; button.disabled = true; statusBox.className = ''; statusBox.textContent = translate('generating'); try { const response = await fetch('/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ test_type:selectedTest.value, records }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); document.querySelector('#downloads').innerHTML = `<a href="${data.excel_url}">${translate('downloadExcel')}</a><a href="${data.pdf_url}">${translate('downloadPdf')}</a>${data.charts.map(chart => `<a href="${chart.png_url}">${translate('downloadPng',{name:escapeHtml(chart.label)})}</a>`).join('')}`; statusBox.className = 'ok'; statusBox.textContent = translate('generated', { count:data.total_records }); } catch (error) { statusBox.className = 'error'; statusBox.textContent = error.message; } finally { button.disabled = false; } });
+
+setLanguage(language);
