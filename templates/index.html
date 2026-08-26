@@ -11,9 +11,9 @@
     .topbar { min-height:56px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding-bottom:26px; }
     .brand { font-weight:800; letter-spacing:-.02em; color:var(--forest); }
     .language { display:flex; gap:3px; padding:3px; border:1px solid var(--line); border-radius:10px; background:#fff; } .language button { padding:5px 9px; border:0; border-radius:7px; color:var(--muted); background:transparent; cursor:pointer; font-size:12px; font-weight:700; } .language button.active { color:#fff; background:var(--green); }
-    .hero { display:grid; grid-template-columns:minmax(0,1fr) 275px; gap:24px; align-items:end; padding:30px 32px; border-radius:var(--radius); color:#effbf5; background:linear-gradient(132deg,#123d32,#1d6954); box-shadow:0 18px 38px #164d3a25; }
+    .hero { padding:30px 32px; border-radius:var(--radius); color:#effbf5; background:linear-gradient(132deg,#123d32,#1d6954); box-shadow:0 18px 38px #164d3a25; }
     .eyebrow { margin:0 0 8px; color:#9fd6bc; font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; } h1 { margin:0; font-size:clamp(28px,4vw,44px); line-height:1.08; letter-spacing:-.04em; } .hero p:last-child { margin:10px 0 0; max-width:58ch; color:#cce5d8; }
-    .mode-card { padding:17px; border:1px solid #78a995; border-radius:12px; background:#ffffff10; } .mode-card span { display:block; color:#a8dac2; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; } .mode-card strong { display:block; margin:3px 0 12px; font-size:18px; } .mode-card a { display:inline-block; color:#fff; font-weight:700; text-decoration:none; }
+    .mode-link { color:var(--green); font-size:13px; font-weight:800; text-decoration:none; } .mode-link:hover { text-decoration:underline; }
     .workflow { display:grid; grid-template-columns:210px minmax(0,1fr); gap:22px; margin-top:24px; }
     .rail { align-self:start; padding:18px 0; } .rail-item { display:flex; align-items:flex-start; gap:11px; padding:0 10px 18px; color:#6c8178; } .rail-number { display:grid; flex:0 0 25px; width:25px; height:25px; place-items:center; border:1px solid #a9c9b9; border-radius:50%; color:var(--green); background:#fff; font-size:12px; font-weight:800; } .rail-item:first-child .rail-number { color:#fff; border-color:var(--green); background:var(--green); } .rail-item strong { display:block; color:var(--ink); font-size:13px; } .rail-item small { display:block; margin-top:1px; font-size:12px; line-height:1.3; }
     .panel { padding:27px; border:1px solid #d5e4dc; border-radius:var(--radius); background:#fff; box-shadow:0 10px 30px #183c2d0b; } .panel + .panel { margin-top:16px; } .panel-header { display:flex; justify-content:space-between; gap:12px; margin-bottom:19px; } .panel-header h2 { margin:0; font-size:18px; letter-spacing:-.02em; } .panel-header p { margin:3px 0 0; color:var(--muted); font-size:13px; }
@@ -23,7 +23,7 @@
     .primary { display:inline-flex; align-items:center; justify-content:center; min-width:180px; margin-top:20px; padding:12px 18px; border:0; border-radius:9px; color:#fff; background:var(--green); box-shadow:0 5px 12px #1b6b5530; cursor:pointer; font:inherit; font-weight:800; transition:transform .14s ease,background .14s ease; } .primary:hover { background:#145a47; } .primary:active { transform:translateY(1px) scale(.99); } .primary:disabled { cursor:wait; opacity:.6; }
     #status { margin-top:17px; white-space:pre-wrap; color:var(--muted); } #status.error { padding:11px; border-radius:9px; color:#8e2525; background:#fff1f1; } #status.ok { padding:11px; border-radius:9px; color:#175c46; background:#ebf7f0; }
     #review { display:none; overflow:auto; } table { width:100%; min-width:740px; border-collapse:collapse; font-size:12px; } th,td { padding:7px; border:1px solid #d5e4dc; text-align:left; vertical-align:top; } th { color:#214a3b; background:var(--mint); } td input { min-width:105px; padding:3px; border:0; border-radius:0; font-size:12px; } .downloads { margin-top:16px; } .downloads a { display:inline-block; margin:8px 10px 0 0; color:var(--green); font-size:13px; font-weight:800; text-decoration:none; } .downloads a:hover { text-decoration:underline; }
-    @media (max-width:800px) { .hero,.workflow { grid-template-columns:1fr; } .rail { display:flex; overflow-x:auto; padding:0; } .rail-item { min-width:146px; padding:8px; } .test-grid { grid-template-columns:1fr; } .shell { width:min(100% - 24px,1120px); } .hero,.panel { padding:22px; } }
+    @media (max-width:800px) { .workflow { grid-template-columns:1fr; } .rail { display:flex; overflow-x:auto; padding:0; } .rail-item { min-width:146px; padding:8px; } .test-grid { grid-template-columns:1fr; } .shell { width:min(100% - 24px,1120px); } .hero,.panel { padding:22px; } }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; } }
   </style>
 </head>
@@ -31,7 +31,10 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand">GMP Automation Gas Test</div>
-      <div class="language" aria-label="Language selector"><button class="active" type="button" data-language="en">EN</button><button type="button" data-language="ko">한국어</button></div>
+      <div style="display:flex; align-items:center; gap:16px;">
+        {% if ocr_mode == 'online' %}<a class="mode-link" href="{{ url_for('offline') }}" data-i18n="switchOffline">→ Use Offline OCR</a>{% endif %}
+        <div class="language" aria-label="Language selector"><button class="active" type="button" data-language="en">EN</button><button type="button" data-language="ko">한국어</button></div>
+      </div>
     </header>
 
     <section class="hero">
@@ -40,11 +43,6 @@
         <h1 data-i18n="headline">Turn scanned gas tests into controlled records.</h1>
         <p data-i18n="subheadline">Review extracted values, then generate traceable Excel logs and charts for cleanroom monitoring.</p>
       </div>
-      <aside class="mode-card">
-        <span data-i18n="modeLabel">Current workflow</span>
-        <strong>{{ 'Online OCR' if ocr_mode == 'online' else 'Offline OCR' }}</strong>
-        {% if ocr_mode == 'online' %}<a href="{{ url_for('offline') }}" data-i18n="switchOffline">Use Offline OCR</a>{% else %}<a href="{{ url_for('online') }}" data-i18n="switchOnline">Use Online OCR</a>{% endif %}
-      </aside>
     </section>
 
     <div class="workflow">
