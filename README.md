@@ -6,7 +6,7 @@ Python web application that converts scanned Oil Content Measurement, Moisture C
 
 1. For `/offline`, run DeepSeek-OCR on Kaggle and create an ngrok endpoint with the provided server. For `/online`, prepare an Anthropic API key.
 2. Run `START_MAC.sh` on macOS or `START_WINDOWS.bat` on Windows.
-3. Your browser will open `http://127.0.0.1:5001`.
+3. Your browser will open `http://127.0.0.1:5005`.
 4. Open `/offline` for a DeepSeek ngrok URL or `/online` for an Anthropic API key, select a measurement type, and upload one or more PDFs of the same type.
 5. Review and correct extracted data before selecting **Generate Excel and Charts**.
 
