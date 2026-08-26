@@ -114,21 +114,21 @@ def _round_up(value, unit):
     return max(unit, math.ceil(value / unit) * unit)
 
 
-def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_max):
+def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_max, y_axis_title):
     """Write chart source data and add a clustered column chart with limit lines."""
     start = 3
-    ws.cell(start, 1, "관리번호")
-    ws.cell(start, 2, "측정 위치")
-    for offset, date in enumerate(dates, start=3):
+    ws.cell(start, 1, "측정 위치 / 관리번호")
+    for offset, date in enumerate(dates, start=2):
         ws.cell(start, offset, date)
-    limit_start = 3 + len(dates)
+    limit_start = 2 + len(dates)
     for offset, (label, _) in enumerate(limits, start=limit_start):
         ws.cell(start, offset, label)
 
     for row_index, category in enumerate(categories, start=start + 1):
-        for column, value in enumerate(category, start=1):
-            ws.cell(row_index, column, value)
-        for offset, date in enumerate(dates, start=3):
+        # A single newline-delimited category is rendered reliably by Excel,
+        # unlike a multi-column category range on combined bar/line charts.
+        ws.cell(row_index, 1, "\n".join(reversed(category)))
+        for offset, date in enumerate(dates, start=2):
             ws.cell(row_index, offset, values[(category, date)])
         for offset, (_, limit) in enumerate(limits, start=limit_start):
             ws.cell(row_index, offset, limit)
@@ -138,29 +138,32 @@ def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_
     bar.type = "col"
     bar.grouping = "clustered"
     bar.title = title
-    bar.height = 18
-    bar.width = 34
+    bar.height = 11
+    bar.width = min(24, max(16, 10 + len(categories) * 1.6))
     bar.y_axis.scaling.min = 0
     bar.y_axis.scaling.max = y_max
+    bar.x_axis.title = "측정 위치 / 관리번호"
+    bar.y_axis.title = y_axis_title
     bar.legend.position = "r"
     if dates:
-        bar.add_data(Reference(ws, min_col=3, max_col=2 + len(dates), min_row=start, max_row=data_end), titles_from_data=True)
-        bar.set_categories(Reference(ws, min_col=1, max_col=2, min_row=start + 1, max_row=data_end))
+        bar.add_data(Reference(ws, min_col=2, max_col=1 + len(dates), min_row=start, max_row=data_end), titles_from_data=True)
+        bar.set_categories(Reference(ws, min_col=1, min_row=start + 1, max_row=data_end))
 
     if limits:
         line = LineChart()
-        line.y_axis.axId = 200
-        line.y_axis.crosses = "max"
-        line.y_axis.scaling.min = 0
-        line.y_axis.scaling.max = y_max
+        line.height = bar.height
+        line.width = bar.width
         line.add_data(Reference(ws, min_col=limit_start, max_col=limit_start + len(limits) - 1, min_row=start, max_row=data_end), titles_from_data=True)
-        line.set_categories(Reference(ws, min_col=1, max_col=2, min_row=start + 1, max_row=data_end))
+        line.set_categories(Reference(ws, min_col=1, min_row=start + 1, max_row=data_end))
         colors = ["E67E22", "C00000", "C07000", "375623", "7030A0"]
         for index, series in enumerate(line.series):
             series.graphicalProperties.line.solidFill = colors[index % len(colors)]
             series.graphicalProperties.line.w = 19050
             series.graphicalProperties.line.prstDash = "dash"
         bar += line
+    # openpyxl can reset dimensions while combining charts; set them last.
+    bar.height = 11
+    bar.width = min(24, max(16, 10 + len(categories) * 1.6))
     ws.add_chart(bar, chart_row)
     for column in range(1, limit_start + len(limits)):
         ws.cell(start, column).font = Font(bold=True)
@@ -226,7 +229,17 @@ def _generate_oil_or_moisture(test_type, records, output_path, chart_paths):
     limits = [(f"허용기준 ≤ {_criteria_number(record.get('criteria_text'), fallback):g}", _criteria_number(record.get("criteria_text"), fallback)) for record in _sorted(records)]
     limits = list(dict.fromkeys(limits))
     y_max = _round_up(max([value or 0 for value in values.values()] + [value for _, value in limits]), 1 if is_oil else 10)
-    _add_excel_chart(chart_sheet, "G3" if is_oil else "F3", chart_title, categories, dates, values, limits, y_max)
+    _add_excel_chart(
+        chart_sheet,
+        "G3" if is_oil else "F3",
+        chart_title,
+        categories,
+        dates,
+        values,
+        limits,
+        y_max,
+        "점검결과 (mg/m³)",
+    )
     figure = _plot_chart(chart_paths[0], chart_title, categories, dates, values, limits, y_max)
     return wb, [figure]
 
@@ -269,7 +282,17 @@ def _generate_airborne(records, output_path, chart_paths):
         grades = list(dict.fromkeys(category[0] for category in categories))
         limits = [(f"{grade} Grade 경고기준 = {PARTICLE_LIMITS[particle_size][grade]:,}", PARTICLE_LIMITS[particle_size][grade]) for grade in grades if grade in PARTICLE_LIMITS[particle_size]]
         y_max = _round_up(max([value or 0 for value in values.values()] + [value for _, value in limits]), 10)
-        _add_excel_chart(sheet, "A25", chart_title, categories, dates, values, limits, y_max)
+        _add_excel_chart(
+            sheet,
+            "A25",
+            chart_title,
+            categories,
+            dates,
+            values,
+            limits,
+            y_max,
+            f"{particle_size} μm 이상 부유입자 수/m³",
+        )
         figures.append(_plot_chart(image_path, chart_title, categories, dates, values, limits, y_max))
     return wb, figures
 

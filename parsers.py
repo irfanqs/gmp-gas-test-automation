@@ -161,6 +161,21 @@ def _value(row, index):
     return row[index].strip() if index is not None and index < len(row) else ""
 
 
+def _deduplicate(records):
+    """Keep the first occurrence when OCR repeats a measurement row with spacing changes."""
+    unique = []
+    seen = set()
+    for record in records:
+        key = tuple(
+            re.sub(r"\s+", "", str(record.get(field, "")))
+            for field in ("performed_date", "no", "management_number", "location")
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(record)
+    return unique
+
+
 def _header_and_rows(table):
     header_index, header = _measurement_table(table)
     if header is None:
@@ -214,7 +229,7 @@ def _parse_oil_or_moisture(pages, test_type):
                 "criteria_text": criteria,
                 "performed_date": performed_date,
             })
-    return records
+    return _deduplicate(records)
 
 
 def _parse_airborne(pages):
@@ -249,7 +264,7 @@ def _parse_airborne(pages):
                 "criteria_text": criteria,
                 "performed_date": performed_date,
             })
-    return records
+    return _deduplicate(records)
 
 
 def parse_document(test_type, pages, filename=""):
