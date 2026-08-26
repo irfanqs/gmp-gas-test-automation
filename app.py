@@ -39,7 +39,6 @@ def extract():
     test_type = request.form.get("test_type")
     ocr_mode = request.form.get("ocr_mode", "offline")
     endpoint = request.form.get("endpoint", "").strip()
-    api_key = request.form.get("api_key", "").strip()
     files = request.files.getlist("pdf_files")
     if test_type not in TEST_TYPES:
         return jsonify(error="Jenis pengukuran tidak valid."), 400
@@ -47,8 +46,6 @@ def extract():
         return jsonify(error="Mode OCR tidak valid."), 400
     if ocr_mode == "offline" and not endpoint:
         return jsonify(error="URL endpoint DeepSeek-OCR diperlukan."), 400
-    if ocr_mode == "online" and not api_key:
-        return jsonify(error="Anthropic API Key diperlukan."), 400
     if not files or all(not file.filename for file in files):
         return jsonify(error="Pilih minimal satu PDF."), 400
 
@@ -65,7 +62,7 @@ def extract():
             path = job_dir / secure_filename(upload.filename)
             upload.save(path)
             try:
-                pages = online_ocr_pdf(path, test_type, api_key) if ocr_mode == "online" else ocr_pdf(path, endpoint)
+                pages = online_ocr_pdf(path, test_type) if ocr_mode == "online" else ocr_pdf(path, endpoint)
                 records.extend(parse_document(test_type, pages, upload.filename))
             except Exception as error:
                 errors.append(f"{upload.filename}: {error}")

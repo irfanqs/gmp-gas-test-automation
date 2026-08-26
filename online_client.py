@@ -1,13 +1,16 @@
 """Anthropic-backed OCR for the /online workflow."""
 
 import base64
+import os
 from io import BytesIO
 
 import requests
 from pdf2image import convert_from_path
+from dotenv import load_dotenv
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929"
+load_dotenv()
 
 PROMPTS = {
     "oil": "유분 측정 기록서 (Oil Content Measurement)",
@@ -22,10 +25,11 @@ def _base64_png(image):
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 
-def ocr_pdf(pdf_path, test_type, api_key, dpi=200):
+def ocr_pdf(pdf_path, test_type, dpi=200):
     """Return an HTML transcription for every scanned PDF page."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
-        raise ValueError("Anthropic API Key diperlukan untuk mode online.")
+        raise ValueError("ANTHROPIC_API_KEY is not configured in .env.")
     images = convert_from_path(pdf_path, dpi=dpi)
     content = [
         {
