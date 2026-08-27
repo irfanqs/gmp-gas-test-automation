@@ -386,7 +386,7 @@ def _generate_airborne(records, output_path, chart_paths):
             limits,
             y_max,
             f"{particle_size} μm 이상 부유입자 수/m³",
-            chart_cell="A25",
+            chart_cell=f"A{len(categories) + 4}",
         )
         figures.append(_plot_chart(image_path, chart_title, categories, dates, matrix_values, limits, y_max))
 
