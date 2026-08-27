@@ -85,6 +85,8 @@ START_WINDOWS.bat
 
 The startup scripts create `.venv`, install `requirements.txt`, open the browser, and run the application on port `5005`.
 
+On the first Windows run, `START_WINDOWS.bat` also creates `.env` and asks for the Anthropic API key. The key is stored locally as `ANTHROPIC_API_KEY` and is not requested again on later runs unless the value is removed from `.env`.
+
 ### Manual Start
 
 ```bash
