@@ -151,8 +151,9 @@ def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_
     bar.type = "col"
     bar.grouping = "clustered"
     bar.title = title
-    bar.height = 11
-    bar.width = min(24, max(16, 10 + len(categories) * 1.6))
+    # Reserve enough space for Excel to display the category and value-axis labels.
+    bar.height = 19
+    bar.width = min(42, max(32, 16 + len(categories) * 2))
     bar.y_axis.scaling.min = 0
     bar.y_axis.scaling.max = y_max
     bar.y_axis.majorUnit = _chart_major_unit(y_max)
@@ -177,8 +178,8 @@ def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_
         line.set_categories(category_reference)
         bar += line
     # openpyxl can reset dimensions while combining charts; set them last.
-    bar.height = 11
-    bar.width = min(24, max(16, 10 + len(categories) * 1.6))
+    bar.height = 19
+    bar.width = min(42, max(32, 16 + len(categories) * 2))
     ws.add_chart(bar, chart_row)
     for column in range(1, limit_start + len(limits)):
         ws.cell(start, column).font = Font(bold=True)
