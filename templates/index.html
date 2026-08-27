@@ -68,6 +68,7 @@
             <div class="panel-header"><div><h2 data-i18n="uploadTitle">{{ 2 if ocr_mode == 'online' else 3 }}. Scanned PDFs</h2><p data-i18n="uploadCopy">Multiple files are allowed. Data from future uploads is added to the same local log.</p></div></div>
             <label class="dropzone" id="dropzone" for="pdf_files"><span class="drop-icon">PDF</span><strong data-i18n="dropTitle">Choose PDF files or drop them here</strong><span data-i18n="dropCopy">Only scanned measurement documents are supported.</span></label>
             <input id="pdf_files" name="pdf_files" type="file" accept="application/pdf" multiple required hidden>
+            <div class="file-list" id="file-list"></div>
             <div class="file-meta" id="file-meta" data-i18n="noFiles">No files selected.</div>
             <button class="primary" id="extract-button" type="submit" data-i18n="extract">Extract Data</button>
             <div id="status" aria-live="polite"></div>
