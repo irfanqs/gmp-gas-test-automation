@@ -12,6 +12,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, LineChart, Reference
 from openpyxl.chart.label import DataLabelList
+from openpyxl.chart.data_source import AxDataSource, StrData, StrRef, StrVal
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
@@ -123,6 +124,16 @@ def _chart_major_unit(y_max):
     return max(magnitude / 10, math.ceil((y_max / 5) / (magnitude / 10)) * (magnitude / 10))
 
 
+def _set_string_categories(charts, ws, first_row, last_row):
+    """Use a string reference because category cells contain location labels."""
+    formula = f"'{ws.title}'!$A${first_row}:$A${last_row}"
+    labels = [StrVal(idx=index, v=str(ws.cell(row, 1).value or "")) for index, row in enumerate(range(first_row, last_row + 1))]
+    category = AxDataSource(strRef=StrRef(f=formula, strCache=StrData(ptCount=len(labels), pt=labels)))
+    for chart in charts:
+        for series in chart.series:
+            series.cat = category
+
+
 def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_max, y_axis_title):
     """Write chart source data and add a clustered column chart with limit lines."""
     start = 3
@@ -158,9 +169,13 @@ def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_
     bar.y_axis.scaling.max = y_max
     bar.y_axis.majorUnit = _chart_major_unit(y_max)
     bar.y_axis.majorGridlines = None
+    bar.y_axis.axPos = "l"
+    bar.y_axis.tickLblPos = "nextTo"
+    bar.x_axis.axPos = "b"
     bar.x_axis.tickLblPos = "low"
     bar.legend.position = "r"
     category_reference = Reference(ws, min_col=1, min_row=start + 1, max_row=data_end)
+    charts = [bar]
     if dates:
         bar.add_data(Reference(ws, min_col=2, max_col=1 + len(dates), min_row=start, max_row=data_end), titles_from_data=True)
         bar.set_categories(category_reference)
@@ -176,10 +191,12 @@ def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_
             series.graphicalProperties.line.w = 19050
             series.graphicalProperties.line.prstDash = "dash"
         line.set_categories(category_reference)
+        charts.append(line)
         bar += line
     # openpyxl can reset dimensions while combining charts; set them last.
     bar.height = 19
     bar.width = min(42, max(32, 16 + len(categories) * 2))
+    _set_string_categories(charts, ws, start + 1, data_end)
     ws.add_chart(bar, chart_row)
     for column in range(1, limit_start + len(limits)):
         ws.cell(start, column).font = Font(bold=True)
