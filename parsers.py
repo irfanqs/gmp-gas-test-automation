@@ -1,4 +1,4 @@
-"""Parse structured online OCR and table-based offline OCR responses."""
+"""Parse structured and table-based OCR responses."""
 
 import json
 import re
