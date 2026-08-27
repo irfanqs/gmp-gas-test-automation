@@ -13,9 +13,18 @@ ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929"
 load_dotenv()
 
 PROMPTS = {
-    "oil": "유분 측정 기록서 (Oil Content Measurement)",
-    "moisture": "수분 측정 기록서 (Moisture Content Measurement)",
-    "airborne": "부유입자 측정 기록서 (Airborne Particle Measurement)",
+    "oil": (
+        "Oil Content Measurement",
+        "no, management_number, location, result_text, photo_attached, judgement, criteria_text, performed_date",
+    ),
+    "moisture": (
+        "Moisture Content Measurement",
+        "no, management_number, location, result_text, photo_attached, judgement, criteria_text, performed_date",
+    ),
+    "airborne": (
+        "Airborne Particle Measurement",
+        "no, management_number, location, grade, particle_05, particle_50, judgement, criteria_text, performed_date",
+    ),
 }
 
 
@@ -26,7 +35,7 @@ def _base64_png(image):
 
 
 def ocr_pdf(pdf_path, test_type, dpi=200):
-    """Return an HTML transcription for every scanned PDF page."""
+    """Return structured OCR text for all scanned PDF pages."""
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY is not configured in .env.")
@@ -38,14 +47,31 @@ def ocr_pdf(pdf_path, test_type, dpi=200):
         }
         for image in images
     ]
+    if images:
+        width, height = images[-1].size
+        date_detail = images[-1].crop((0, int(height * 0.68), width, height))
+        content.extend([
+            {"type": "text", "text": "The next image is a close-up of the signature and date area from the final page."},
+            {
+                "type": "image",
+                "source": {"type": "base64", "media_type": "image/png", "data": _base64_png(date_detail)},
+            },
+        ])
+    document_name, fields = PROMPTS[test_type]
     content.append(
         {
             "type": "text",
             "text": (
-                f"Transcribe this scanned Korean GMP document ({PROMPTS[test_type]}) exactly. "
-                "Return only valid HTML. Preserve every table, row, column, Korean text, handwritten "
-                "measurement, checkbox state, acceptance criterion, final judgement, and performed date. "
-                "Use <table>, <tr>, <th>, and <td>; use checked checkboxes as the character ☑."
+                f"Extract this scanned Korean GMP document ({document_name}) into JSON. "
+                f"Return only one valid JSON object with this shape: {{\"records\": [...]}}. "
+                f"Every record must contain these keys: {fields}. "
+                "Create exactly one record per numbered measurement row. Preserve Korean text exactly. "
+                "Keep result_text limited to the handwritten measurement result; do not include photo or checkbox text. "
+                "Set photo_attached to exactly Yes or No and judgement to exactly 적합 or 부적합. "
+                "Use performed_date from the handwritten Performed by date in YYYY.MM.DD format. "
+                "Cross-check repeated dates in the close-up and carefully distinguish handwritten 08 from 06. "
+                "Repeat the document-level criterion, judgement, and performed date in every record. "
+                "Use JSON numbers for particle_05 and particle_50. Do not return Markdown or explanatory text."
             ),
         }
     )
@@ -62,4 +88,4 @@ def ocr_pdf(pdf_path, test_type, dpi=200):
     if response.status_code != 200:
         raise RuntimeError(f"Anthropic API returned {response.status_code}: {response.text}")
     text = "".join(block.get("text", "") for block in response.json().get("content", []) if block.get("type") == "text")
-    return [text.removeprefix("```html").removeprefix("```").removesuffix("```").strip()]
+    return [text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()]

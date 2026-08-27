@@ -1,5 +1,6 @@
-"""Parsers for the three GMP gas-test forms returned by DeepSeek-OCR."""
+"""Parse structured online OCR and table-based offline OCR responses."""
 
+import json
 import re
 from html.parser import HTMLParser
 
@@ -180,6 +181,62 @@ def _deduplicate(records):
     return unique
 
 
+def _json_payload(pages):
+    text = "\n".join(pages).strip()
+    candidates = []
+    if "{" in text and "}" in text:
+        candidates.append(text[text.find("{"):text.rfind("}") + 1])
+    if "[" in text and "]" in text:
+        candidates.append(text[text.find("["):text.rfind("]") + 1])
+    for candidate in candidates:
+        try:
+            payload = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        records = payload.get("records") if isinstance(payload, dict) else payload
+        if isinstance(records, list):
+            return [record for record in records if isinstance(record, dict)]
+    return []
+
+
+def _parse_json_records(pages, test_type):
+    source = _json_payload(pages)
+    records = []
+    for index, row in enumerate(source, start=1):
+        performed_date = _date(str(row.get("performed_date", "")))
+        common = {
+            "no": str(row.get("no", index)).strip(),
+            "management_number": str(row.get("management_number", "")).strip(),
+            "location": str(row.get("location", "")).strip(),
+            "judgement": "부적합" if str(row.get("judgement", "")).strip() == "부적합" else "적합",
+            "criteria_text": str(row.get("criteria_text", "")).strip(),
+            "performed_date": performed_date,
+        }
+        if not common["management_number"] or not common["location"]:
+            continue
+        if test_type in ("oil", "moisture"):
+            result = str(row.get("result_text", "")).strip()
+            if not result:
+                continue
+            records.append({
+                **common,
+                "result_text": result,
+                "photo_attached": _checkbox_value(str(row.get("photo_attached", ""))),
+            })
+        elif test_type == "airborne":
+            particle_05 = _number(row.get("particle_05"))
+            particle_50 = _number(row.get("particle_50"))
+            if particle_05 is None and particle_50 is None:
+                continue
+            records.append({
+                **common,
+                "grade": str(row.get("grade", "")).strip().upper(),
+                "particle_05": particle_05 if particle_05 is not None else 0,
+                "particle_50": particle_50 if particle_50 is not None else 0,
+            })
+    return _deduplicate(records)
+
+
 def _header_and_rows(table):
     header_index, header = _measurement_table(table)
     if header is None:
@@ -275,6 +332,9 @@ def _parse_airborne(pages):
 
 def parse_document(test_type, pages, filename=""):
     """Parse all OCR pages from one uploaded PDF into reviewable record rows."""
+    structured = _parse_json_records(pages, test_type)
+    if structured:
+        return structured
     if test_type == "oil":
         return _parse_oil_or_moisture(pages, test_type)
     if test_type == "moisture":

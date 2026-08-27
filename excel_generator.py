@@ -93,57 +93,59 @@ def _chart_major_unit(y_max):
 def _add_xlsx_chart(wb, sheet_name, title, categories, dates, values, limits, y_max, y_axis_title, chart_cell="A10"):
     """Write pivot data and create a clustered column + line chart using xlsxwriter."""
     ws = wb.add_worksheet(sheet_name)
-    ws.set_column("A:A", 38)
-    for col in range(2, 2 + len(dates) + len(limits)):
+    category_width = 1
+    ws.set_column(0, 0, 38)
+    for col in range(category_width, category_width + len(dates) + len(limits)):
         ws.set_column(col, col, 16)
 
     header_fmt = wb.add_format({**HEADER_FORMAT})
-    bold_fmt = wb.add_format({"bold": True})
-    num_fmt = wb.add_format({**CENTER_FORMAT})
 
     start = 0
     ws.write(start, 0, "측정 위치 / 관리번호", header_fmt)
-    for offset, date in enumerate(dates, start=1):
+    for offset, date in enumerate(dates, start=category_width):
         ws.write(start, offset, date, header_fmt)
-    limit_start = 1 + len(dates)
+    limit_start = category_width + len(dates)
     for offset, (label, _) in enumerate(limits, start=limit_start):
         ws.write(start, offset, label, header_fmt)
 
     for row_index, category in enumerate(categories, start=start + 1):
         ws.write(row_index, 0, "\n".join(reversed(category)))
         ws.set_row(row_index, 30)
-        for offset, date in enumerate(dates, start=1):
+        for offset, date in enumerate(dates, start=category_width):
             ws.write_number(row_index, offset, values[(category, date)] or 0)
         for offset, (_, limit_val) in enumerate(limits, start=limit_start):
             ws.write_number(row_index, offset, limit_val)
 
     chart = wb.add_chart({"type": "column"})
     last_row = start + len(categories)
+    category_range = [sheet_name, start + 1, 0, last_row, category_width - 1]
 
-    if dates:
+    for index, date in enumerate(dates):
         chart.add_series({
-            "name": dates[0],
-            "categories": [sheet_name, start + 1, 0, last_row, 0],
-            "values": [sheet_name, start + 1, 1, last_row, 1],
+            "name": date,
+            "categories": category_range,
+            "values": [sheet_name, start + 1, category_width + index, last_row, category_width + index],
         })
 
+    line_chart = wb.add_chart({"type": "line"})
     for idx, (label, limit_val) in enumerate(limits):
-        chart.add_series({
+        line_chart.add_series({
             "name": label,
-            "categories": [sheet_name, start + 1, 0, last_row, 0],
+            "categories": category_range,
             "values": [sheet_name, start + 1, limit_start + idx, last_row, limit_start + idx],
-            "type": "line",
             "line": {
                 "color": ["#E67E22", "#C00000", "#C07000", "#375623", "#7030A0"][idx % 5],
                 "dash_type": "dash",
                 "width": 2,
             },
         })
+    if limits:
+        chart.combine(line_chart)
 
     chart.set_title({"name": title})
     chart.set_x_axis({
         "name": "측정 위치 / 관리번호",
-        "num_font": {"rotation": -45, "size": 9},
+        "num_font": {"size": 9},
     })
     chart.set_y_axis({
         "name": y_axis_title,
@@ -152,7 +154,7 @@ def _add_xlsx_chart(wb, sheet_name, title, categories, dates, values, limits, y_
         "major_unit": _chart_major_unit(y_max),
     })
     chart.set_legend({"position": "right"})
-    chart.set_size({"width": 720, "height": 420})
+    chart.set_size({"width": 1000, "height": 520})
     chart.set_plotarea({"border": {"none": True}})
 
     ws.insert_chart(chart_cell, chart)
@@ -301,7 +303,7 @@ def _generate_oil_or_moisture(test_type, records, output_path, chart_paths):
         limits,
         y_max,
         "점검결과 (mg/m³)",
-        chart_cell="A10" if not is_oil else "A10",
+        chart_cell="F2",
     )
 
     wb.close()
