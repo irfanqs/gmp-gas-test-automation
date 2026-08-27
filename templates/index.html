@@ -48,14 +48,12 @@
       <div>
         <form id="upload-form">
           <input type="hidden" name="ocr_mode" value="{{ ocr_mode }}">
+          {% if ocr_mode != 'online' %}
           <section class="panel">
             <div class="panel-header"><div><h2 data-i18n="connectionTitle">1. OCR Connection</h2><p data-i18n="connectionCopy">Enter the connection used to read scanned forms.</p></div></div>
-            {% if ocr_mode == 'online' %}
-            <div class="field"><label data-i18n="apiLabel">Online OCR Configuration</label><p class="helper" data-i18n="apiHelp">The local ANTHROPIC_API_KEY environment setting is used for this request.</p></div>
-            {% else %}
             <div class="field"><label for="endpoint" data-i18n="endpointLabel">DeepSeek-OCR Endpoint</label><input id="endpoint" name="endpoint" type="url" placeholder="https://xxxx.ngrok-free.app" required><p class="helper" data-i18n="endpointHelp">Paste the active Kaggle/ngrok endpoint URL.</p></div>
-            {% endif %}
           </section>
+          {% endif %}
 
           <section class="panel">
             <div class="panel-header"><div><h2 data-i18n="testTitle">2. Measurement Type</h2><p data-i18n="testCopy">Upload PDFs from one measurement type at a time.</p></div></div>
