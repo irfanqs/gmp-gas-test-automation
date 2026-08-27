@@ -25,6 +25,15 @@
     @media (max-width:800px) { .test-grid { grid-template-columns:1fr; } .shell { width:min(100% - 24px,1120px); } .hero,.panel { padding:22px; } }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; } }
   </style>
+  <style>
+    .file-list { display: grid; gap: 8px; margin-top: 12px; }
+    .file-item { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border: 1px solid #d5e4dc; border-radius: 11px; color: var(--ink); background: #f7fbf9; font-size: 13px; }
+    .file-type { display: grid; flex: 0 0 25px; place-items: center; width: 25px; height: 30px; border-radius: 3px; color: #fff; background: var(--green); font-size: 8px; font-weight: 800; }
+    .file-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .remove-file { display: grid; flex: 0 0 28px; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; color: #d94840; background: transparent; cursor: pointer; font: inherit; font-size: 25px; line-height: 1; }
+    .remove-file:hover { color: #a92d27; background: #fff1f1; }
+  </style>
 </head>
 <body data-ocr-mode="{{ ocr_mode }}">
   <main class="shell">
@@ -84,6 +93,6 @@
       </div>
     </div>
   </main>
-  <script src="{{ url_for('static', filename='app.js', v='upload-layout-1') }}"></script>
+  <script src="{{ url_for('static', filename='app.js', v='upload-layout-2') }}"></script>
 </body>
 </html>
