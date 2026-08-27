@@ -244,7 +244,7 @@ def _header_and_rows(table):
     data_start = header_index + 1
     while data_start < len(table) and not (table[data_start] and _is_row_number(_value(table[data_start], 0))):
         data_start += 1
-    # DeepSeek commonly represents the Particle header across two HTML rows.
+    # OCR may represent the Particle header across two HTML rows.
     # Joining them preserves labels such as "0.5 μm 이상 부유입자 수/m³".
     header_width = max(len(row) for row in table[header_index:data_start])
     header = [

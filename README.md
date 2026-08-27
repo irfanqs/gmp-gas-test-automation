@@ -1,4 +1,4 @@
-# GMP Automation Gas Test
+# GMP Automation Gas Test - Online OCR
 
 Flask web application that converts scanned Korean GMP gas-test PDFs into reviewable records, Excel workbooks, and downloadable charts.
 
@@ -11,7 +11,6 @@ Supported measurements:
 ## Features
 
 - Online OCR through Anthropic Claude.
-- Offline OCR through a DeepSeek-OCR Kaggle/ngrok endpoint.
 - English and Korean interface.
 - Additive multi-PDF upload for one measurement type at a time.
 - Duplicate upload selections are ignored, and selected files can be removed before extraction.
@@ -21,9 +20,7 @@ Supported measurements:
 - JPG chart exports and a combined chart PDF.
 - Clean download names without internal job IDs.
 
-## OCR Modes
-
-### Online OCR
+## Online OCR
 
 Open `http://127.0.0.1:5005/online`.
 
@@ -37,23 +34,11 @@ ANTHROPIC_API_KEY=your_anthropic_api_key
 
 The `.env` file is ignored by Git. Never commit or share the API key.
 
-### Offline OCR
-
-Open `http://127.0.0.1:5005/offline`.
-
-Offline OCR renders each PDF page locally and sends it to the DeepSeek-OCR `/ocr` endpoint. Enter the active Kaggle/ngrok base URL in the interface, for example:
-
-```text
-https://example.ngrok-free.app
-```
-
-The application appends `/ocr` automatically. `kaggle_server.py` contains the FastAPI server used by the offline workflow and exposes `/health` and `/ocr` routes.
-
 ## System Requirements
 
 - Python 3.10 or newer.
 - Poppler for rendering scanned PDF pages.
-- Internet access for online OCR or access to the configured DeepSeek-OCR endpoint.
+- Internet access to the Anthropic API.
 
 Install Poppler:
 
@@ -106,17 +91,16 @@ Open `http://127.0.0.1:5005`. The root route redirects to `/online`.
 
 ## Workflow
 
-1. Choose Online OCR or Offline OCR from the top navigation.
-2. Select Oil, Moisture, or Airborne Particle.
-3. Select or drag one or more PDFs from the same measurement type.
-4. Add more PDFs in later selections if needed; new files are appended to the list.
-5. Remove unwanted files with the red cross button.
-6. Select **Extract Data**.
-7. Review and correct OCR values, especially handwritten dates and measurements.
-8. Select **Generate Excel and Charts**.
-9. Download the Excel workbook, combined chart PDF, or individual chart JPG files.
+1. Select Oil, Moisture, or Airborne Particle.
+2. Select or drag one or more PDFs from the same measurement type.
+3. Add more PDFs in later selections if needed; new files are appended to the list.
+4. Remove unwanted files with the red cross button.
+5. Select **Extract Data**.
+6. Review and correct OCR values, especially handwritten dates and measurements.
+7. Select **Generate Excel and Charts**.
+8. Download the Excel workbook, combined chart PDF, or individual chart JPG files.
 
-Generating Excel does not call Claude. Anthropic usage only occurs during **Extract Data** in the online workflow.
+Generating Excel does not call Claude. Anthropic usage only occurs during **Extract Data**.
 
 ## Output
 
@@ -164,14 +148,14 @@ Temporary uploaded PDFs are removed after OCR processing. The following paths ar
 
 ## Privacy
 
-Online mode sends rendered PDF pages and a cropped date area to Anthropic. Offline mode sends rendered pages to the DeepSeek-OCR endpoint entered by the user. PDF rendering, review, storage, Excel generation, JPG generation, and PDF chart generation occur locally.
+The application sends rendered PDF pages and a cropped date area to Anthropic. PDF rendering, review, storage, Excel generation, JPG generation, and PDF chart generation occur locally.
 
 ## Validation
 
 Run basic syntax checks without performing OCR:
 
 ```bash
-.venv/bin/python -m py_compile app.py online_client.py deepseek_client.py parsers.py storage.py excel_generator.py
+.venv/bin/python -m py_compile app.py online_client.py parsers.py storage.py excel_generator.py
 node --check static/app.js
 ```
 
@@ -181,7 +165,7 @@ For an end-to-end test, upload a sample PDF through the interface, verify the re
 
 ### `422 Unprocessable Entity`
 
-OCR completed, but no valid measurement records were parsed. Confirm that the selected measurement type matches the PDF. Restart the Flask server after pulling code changes. Online OCR expects structured JSON; offline OCR expects table-based Markdown or HTML from DeepSeek-OCR.
+OCR completed, but no valid measurement records were parsed. Confirm that the selected measurement type matches the PDF. Restart the Flask server after pulling code changes. Online OCR expects structured JSON from Anthropic.
 
 ### `ANTHROPIC_API_KEY is not configured`
 
@@ -191,22 +175,16 @@ Add `ANTHROPIC_API_KEY` to `.env`, then restart the application.
 
 Install Poppler and confirm `pdftoppm` is available on `PATH`.
 
-### Offline endpoint fails
-
-Open `<endpoint>/health` and confirm it returns a successful response. Ensure the ngrok session and Kaggle runtime are still active.
-
 ### Browser shows an older interface
 
 Restart the Flask process and reload the page. Static JavaScript URLs include cache-busting versions, but a running process may still serve an older template until restarted.
 
 ## Main Files
 
-- `app.py`: Flask routes for online/offline pages, extraction, generation, and downloads.
+- `app.py`: Flask routes for the online page, extraction, generation, and downloads.
 - `online_client.py`: Anthropic OCR and structured JSON prompt.
-- `deepseek_client.py`: DeepSeek-OCR endpoint client.
 - `parsers.py`: Structured JSON and HTML/Markdown table parsers.
 - `excel_generator.py`: XlsxWriter workbooks plus Matplotlib JPG/PDF charts.
 - `storage.py`: Local SQLite history.
 - `templates/index.html`: Application interface.
 - `static/app.js`: Upload management, review table, generation, and downloads.
-- `kaggle_server.py`: DeepSeek-OCR FastAPI server for Kaggle.
