@@ -22,7 +22,9 @@ Supported measurements:
 
 ## Offline OCR
 
-Open `http://127.0.0.1:5005/offline`.
+Open `http://127.0.0.1:5006/offline`.
+
+This branch listens on port `5006`. The companion `gmp-online` branch listens on port `5005`. To run both applications at the same time, launch each branch from a separate checkout or Git worktree.
 
 Offline OCR renders each PDF page locally and sends it to the DeepSeek-OCR `/ocr` endpoint. Enter the active Kaggle/ngrok base URL in the interface, for example:
 
@@ -66,7 +68,7 @@ Windows:
 START_WINDOWS.bat
 ```
 
-The startup scripts create `.venv`, install `requirements.txt`, open the browser, and run the application on port `5005`.
+The startup scripts create `.venv`, install `requirements.txt`, open the browser, and run the application on port `5006`.
 
 ### Manual Start
 
@@ -83,7 +85,7 @@ Windows activation:
 .venv\Scripts\activate
 ```
 
-Open `http://127.0.0.1:5005`. The root route redirects to `/offline`.
+Open `http://127.0.0.1:5006`. The root route redirects to `/offline`.
 
 ## Workflow
 
