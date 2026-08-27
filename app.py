@@ -88,11 +88,12 @@ def generate():
     job_id = uuid.uuid4().hex
     save_and_load(test_type, records)
     result = generate_workbook(test_type, records, OUTPUT_DIR, job_id)
+    chart_labels = ["0.5 μm", "5.0 μm"] if test_type == "airborne" else [""]
     return jsonify(
         excel_url=f"/download/{result['excel'].name}",
         charts=[
-            {"label": chart.stem, "png_url": f"/download/{chart.name}"}
-            for chart in result["charts"]
+            {"label": chart_labels[index], "png_url": f"/download/{chart.name}"}
+            for index, chart in enumerate(result["charts"])
         ],
         pdf_url=f"/download/{result['pdf'].name}",
         total_records=len(records),
