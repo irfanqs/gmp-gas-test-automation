@@ -9,13 +9,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 from matplotlib.backends.backend_pdf import PdfPages
-from openpyxl import Workbook
-from openpyxl.chart import BarChart, LineChart, Reference
-from openpyxl.chart.axis import ChartLines
-from openpyxl.chart.label import DataLabelList
-from openpyxl.chart.data_source import AxDataSource, StrData, StrRef, StrVal
-from openpyxl.utils import get_column_letter
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+import xlsxwriter
 
 from config import MOISTURE_LIMIT, OIL_LIMIT, PARTICLE_LIMITS, TEST_TYPES
 
@@ -34,12 +28,14 @@ def _configure_korean_font():
 
 _configure_korean_font()
 
-RED = PatternFill("solid", fgColor="FF9999")
-BLUE = PatternFill("solid", fgColor="D9EAF7")
-THIN = Side(style="thin", color="A8B8B4")
-BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
-CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
-LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
+THICK = 1.5
+THIN_BORDER = {"border": 1, "border_color": "#A8B8B4"}
+CENTER_FORMAT = {"align": "center", "valign": "vcenter", "text_wrap": True}
+LEFT_FORMAT = {"align": "left", "valign": "vcenter", "text_wrap": True}
+HEADER_FORMAT = {**CENTER_FORMAT, "bold": True, "bg_color": "#D9EAF7", **THIN_BORDER}
+TITLE_FORMAT = {"bold": True, "font_size": 16, "align": "center", "valign": "vcenter"}
+NOTE_FORMAT = {"text_wrap": True, "valign": "vcenter"}
+RED_FORMAT = {"bg_color": "#FF9999"}
 
 
 def _number(value):
@@ -56,36 +52,6 @@ def _date_key(value):
 
 def _sorted(records):
     return sorted(records, key=lambda row: _date_key(row.get("performed_date")), reverse=True)
-
-
-def _style(cell, fill=None, left=False):
-    cell.border = BORDER
-    cell.alignment = LEFT if left else CENTER
-    if fill:
-        cell.fill = fill
-
-
-def _title(ws, title, end_column, header_row, note=None):
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=end_column)
-    ws.cell(1, 1, title).font = Font(bold=True, size=16)
-    ws.cell(1, 1).alignment = CENTER
-    if note:
-        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=end_column)
-        cell = ws.cell(2, 1, note)
-        cell.alignment = Alignment(wrap_text=True, vertical="center")
-        ws.row_dimensions[2].height = 72
-
-
-def _headers(ws, row, headers):
-    for column, header in enumerate(headers, start=1):
-        cell = ws.cell(row, column, header)
-        cell.font = Font(bold=True)
-        _style(cell, BLUE)
-
-
-def _widths(ws, widths):
-    for column, width in widths.items():
-        ws.column_dimensions[column].width = width
 
 
 def _criteria_number(text, fallback):
@@ -118,92 +84,79 @@ def _round_up(value, unit):
 
 
 def _chart_major_unit(y_max):
-    """Use a small number of clean grid intervals instead of dense black lines."""
     if y_max <= 1:
         return 0.2
     magnitude = 10 ** math.floor(math.log10(y_max))
     return max(magnitude / 10, math.ceil((y_max / 5) / (magnitude / 10)) * (magnitude / 10))
 
 
-def _set_string_categories(charts, ws, first_row, last_row):
-    """Use a string reference because category cells contain location labels."""
-    formula = f"'{ws.title}'!$A${first_row}:$A${last_row}"
-    labels = [StrVal(idx=index, v=str(ws.cell(row, 1).value or "")) for index, row in enumerate(range(first_row, last_row + 1))]
-    category = AxDataSource(strRef=StrRef(f=formula, strCache=StrData(ptCount=len(labels), pt=labels)))
-    for chart in charts:
-        for series in chart.series:
-            series.cat = category
+def _add_xlsx_chart(wb, sheet_name, title, categories, dates, values, limits, y_max, y_axis_title, chart_cell="A10"):
+    """Write pivot data and create a clustered column + line chart using xlsxwriter."""
+    ws = wb.add_worksheet(sheet_name)
+    ws.set_column("A:A", 38)
+    for col in range(2, 2 + len(dates) + len(limits)):
+        ws.set_column(col, col, 16)
 
+    header_fmt = wb.add_format({**HEADER_FORMAT})
+    bold_fmt = wb.add_format({"bold": True})
+    num_fmt = wb.add_format({**CENTER_FORMAT})
 
-def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_max, y_axis_title):
-    """Write chart source data and add a clustered column chart with limit lines."""
-    start = 3
-    ws.cell(start, 1, "측정 위치 / 관리번호")
-    for offset, date in enumerate(dates, start=2):
-        ws.cell(start, offset, date)
-    limit_start = 2 + len(dates)
+    start = 0
+    ws.write(start, 0, "측정 위치 / 관리번호", header_fmt)
+    for offset, date in enumerate(dates, start=1):
+        ws.write(start, offset, date, header_fmt)
+    limit_start = 1 + len(dates)
     for offset, (label, _) in enumerate(limits, start=limit_start):
-        ws.cell(start, offset, label)
+        ws.write(start, offset, label, header_fmt)
 
     for row_index, category in enumerate(categories, start=start + 1):
-        # A single newline-delimited category is rendered reliably by Excel,
-        # unlike a multi-column category range on combined bar/line charts.
-        ws.cell(row_index, 1, "\n".join(reversed(category)))
-        for offset, date in enumerate(dates, start=2):
-            ws.cell(row_index, offset, values[(category, date)])
-        for offset, (_, limit) in enumerate(limits, start=limit_start):
-            ws.cell(row_index, offset, limit)
-        ws.row_dimensions[row_index].height = 30
+        ws.write(row_index, 0, "\n".join(reversed(category)))
+        ws.set_row(row_index, 30)
+        for offset, date in enumerate(dates, start=1):
+            ws.write_number(row_index, offset, values[(category, date)] or 0)
+        for offset, (_, limit_val) in enumerate(limits, start=limit_start):
+            ws.write_number(row_index, offset, limit_val)
 
-    data_end = start + len(categories)
-    ws.column_dimensions["A"].width = 38
-    for column in range(2, limit_start + len(limits)):
-        ws.column_dimensions[get_column_letter(column)].width = 16
-    bar = BarChart()
-    bar.type = "col"
-    bar.grouping = "clustered"
-    bar.title = title
-    # Reserve enough space for Excel to display the category and value-axis labels.
-    bar.height = 19
-    bar.width = min(42, max(32, 16 + len(categories) * 2))
-    bar.y_axis.scaling.min = 0
-    bar.y_axis.scaling.max = y_max
-    bar.y_axis.majorUnit = _chart_major_unit(y_max)
-    bar.y_axis.delete = False
-    bar.y_axis.majorGridlines = ChartLines()
-    bar.y_axis.axPos = "l"
-    bar.y_axis.tickLblPos = "nextTo"
-    bar.x_axis.delete = False
-    bar.x_axis.axPos = "b"
-    bar.x_axis.tickLblPos = "nextTo"
-    bar.legend.position = "r"
-    category_reference = Reference(ws, min_col=1, min_row=start + 1, max_row=data_end)
-    charts = [bar]
+    chart = wb.add_chart({"type": "column"})
+    last_row = start + len(categories)
+
     if dates:
-        bar.add_data(Reference(ws, min_col=2, max_col=1 + len(dates), min_row=start, max_row=data_end), titles_from_data=True)
-        bar.set_categories(category_reference)
+        chart.add_series({
+            "name": dates[0],
+            "categories": [sheet_name, start + 1, 0, last_row, 0],
+            "values": [sheet_name, start + 1, 1, last_row, 1],
+        })
 
-    if limits:
-        line = LineChart()
-        line.height = bar.height
-        line.width = bar.width
-        line.add_data(Reference(ws, min_col=limit_start, max_col=limit_start + len(limits) - 1, min_row=start, max_row=data_end), titles_from_data=True)
-        colors = ["E67E22", "C00000", "C07000", "375623", "7030A0"]
-        for index, series in enumerate(line.series):
-            series.graphicalProperties.line.solidFill = colors[index % len(colors)]
-            series.graphicalProperties.line.w = 19050
-            series.graphicalProperties.line.prstDash = "dash"
-        line.set_categories(category_reference)
-        charts.append(line)
-        bar += line
-    # openpyxl can reset dimensions while combining charts; set them last.
-    bar.height = 19
-    bar.width = min(42, max(32, 16 + len(categories) * 2))
-    _set_string_categories(charts, ws, start + 1, data_end)
-    ws.add_chart(bar, chart_row)
-    for column in range(1, limit_start + len(limits)):
-        ws.cell(start, column).font = Font(bold=True)
-        _style(ws.cell(start, column), BLUE)
+    for idx, (label, limit_val) in enumerate(limits):
+        chart.add_series({
+            "name": label,
+            "categories": [sheet_name, start + 1, 0, last_row, 0],
+            "values": [sheet_name, start + 1, limit_start + idx, last_row, limit_start + idx],
+            "type": "line",
+            "line": {
+                "color": ["#E67E22", "#C00000", "#C07000", "#375623", "#7030A0"][idx % 5],
+                "dash_type": "dash",
+                "width": 2,
+            },
+        })
+
+    chart.set_title({"name": title})
+    chart.set_x_axis({
+        "name": "측정 위치 / 관리번호",
+        "num_font": {"rotation": -45, "size": 9},
+    })
+    chart.set_y_axis({
+        "name": y_axis_title,
+        "min": 0,
+        "max": y_max,
+        "major_unit": _chart_major_unit(y_max),
+    })
+    chart.set_legend({"position": "right"})
+    chart.set_size({"width": 720, "height": 420})
+    chart.set_plotarea({"border": {"none": True}})
+
+    ws.insert_chart(chart_cell, chart)
+    return ws
 
 
 def _plot_chart(path, title, categories, dates, values, limits, y_max):
@@ -226,86 +179,190 @@ def _plot_chart(path, title, categories, dates, values, limits, y_max):
     return figure
 
 
+def _write_data_sheet_xlsx(wb, sheet_name, title, headers, records, col_widths, header_row, row_format_fn=None):
+    """Write a styled data sheet using xlsxwriter."""
+    ws = wb.add_worksheet(sheet_name)
+    title_fmt = wb.add_format(TITLE_FORMAT)
+    note_fmt = wb.add_format(NOTE_FORMAT)
+    center_fmt = wb.add_format(CENTER_FORMAT)
+    left_fmt = wb.add_format(LEFT_FORMAT)
+    header_fmt = wb.add_format(HEADER_FORMAT)
+    red_center = wb.add_format({**CENTER_FORMAT, **THIN_BORDER, "bg_color": "#FF9999"})
+    red_left = wb.add_format({**LEFT_FORMAT, **THIN_BORDER, "bg_color": "#FF9999"})
+
+    ws.merge_range(0, 0, 0, len(headers) - 1, title, title_fmt)
+
+    for col, header in enumerate(headers):
+        ws.write(header_row - 1, col, header, header_fmt)
+
+    for col_letter, width in col_widths.items():
+        col_idx = ord(col_letter) - ord("A")
+        ws.set_column(col_idx, col_idx, width)
+
+    for row_offset, record in enumerate(records):
+        row_idx = header_row + row_offset
+        ws.set_row(row_idx, 20)
+        row_vals = row_format_fn(record) if row_format_fn else []
+        for col, value in enumerate(row_vals):
+            fmt = left_fmt if col in (2, 3, 6) else center_fmt
+            if row_format_fn and hasattr(record, "_red_cols") and col in record._red_cols:
+                fmt = red_left if col in (2, 3, 6) else red_center
+            if isinstance(value, (int, float)):
+                ws.write_number(row_idx, col, value, fmt)
+            else:
+                ws.write(row_idx, col, value, fmt)
+
+    ws.freeze_panes(header_row, 0)
+    return ws
+
+
 def _generate_oil_or_moisture(test_type, records, output_path, chart_paths):
     is_oil = test_type == "oil"
     title = "유분 측정 일지" if is_oil else "수분 측정 일지"
     chart_title = "오일 함량 측정 기록 피벗 차트" if is_oil else "수분 측정 일지 피벗 차트"
     fallback = OIL_LIMIT if is_oil else MOISTURE_LIMIT
-    wb = Workbook()
-    data = wb.active
-    data.title = "데이터"
-    _title(data, title, 8, 4)
-    headers = ["No.", "관리번호", "측정 위치", "점검결과 (mg/m³)", "측정사진 첨부", "판정", "허용기준", "Performed Date"]
-    _headers(data, 4 if is_oil else 3, headers)
     header_row = 4 if is_oil else 3
-    for row_index, record in enumerate(_sorted(records), start=header_row + 1):
-        values = [record.get("no"), record.get("management_number"), record.get("location"), record.get("result_text"), record.get("photo_attached"), record.get("judgement"), record.get("criteria_text"), record.get("performed_date")]
-        for column, value in enumerate(values, start=1):
-            cell = data.cell(row_index, column, value)
-            _style(cell, left=column in (3, 4, 7))
-        if _number(record.get("result_text")) > fallback:
-            data.cell(row_index, 4).fill = RED
-        if record.get("judgement") != "적합":
-            data.cell(row_index, 6).fill = RED
-    _widths(data, {"A": 8, "B": 14, "C": 28, "D": 22, "E": 16, "F": 12, "G": 42, "H": 16})
-    data.freeze_panes = f"A{header_row + 1}"
 
-    simple = wb.create_sheet("간소화된 데이터")
-    _title(simple, title, 6, header_row)
-    _headers(simple, header_row, ["No.", "관리번호", "측정 위치", "점검결과 (mg/m³)", "허용기준", "Performed Date"])
-    for row_index, record in enumerate(_sorted(records), start=header_row + 1):
-        values = [record.get("no"), record.get("management_number"), record.get("location"), _number(record.get("result_text")), _criteria_number(record.get("criteria_text"), fallback), record.get("performed_date")]
-        for column, value in enumerate(values, start=1):
-            _style(simple.cell(row_index, column, value), left=column == 3)
-    _widths(simple, {"A": 8, "B": 14, "C": 28, "D": 22, "E": 16, "F": 16})
-    simple.freeze_panes = f"A{header_row + 1}"
+    wb = xlsxwriter.Workbook(str(output_path))
 
-    chart_sheet = wb.create_sheet("피벗 차트")
-    categories, dates, values = _matrix(_sorted(records), "result_text", ("management_number", "location"))
+    # --- Sheet 1: 데이터 ---
+    headers = ["No.", "관리번호", "측정 위치", "점검결과 (mg/m³)", "측정사진 첨부", "판정", "허용기준", "Performed Date"]
+    data_ws = wb.add_worksheet("데이터")
+    title_fmt = wb.add_format(TITLE_FORMAT)
+    header_fmt = wb.add_format(HEADER_FORMAT)
+    center_fmt = wb.add_format(CENTER_FORMAT)
+    left_fmt = wb.add_format(LEFT_FORMAT)
+    red_center = wb.add_format({**CENTER_FORMAT, **THIN_BORDER, "bg_color": "#FF9999"})
+    red_left = wb.add_format({**LEFT_FORMAT, **THIN_BORDER, "bg_color": "#FF9999"})
+
+    data_ws.merge_range(0, 0, 0, len(headers) - 1, title, title_fmt)
+    for col, header in enumerate(headers):
+        data_ws.write(header_row - 1, col, header, header_fmt)
+
+    col_widths = {"A": 8, "B": 14, "C": 28, "D": 22, "E": 16, "F": 12, "G": 42, "H": 16}
+    for letter, w in col_widths.items():
+        data_ws.set_column(ord(letter) - 65, ord(letter) - 65, w)
+
+    for row_offset, record in enumerate(_sorted(records)):
+        row_idx = header_row + row_offset
+        vals = [record.get("no"), record.get("management_number"), record.get("location"),
+                record.get("result_text"), record.get("photo_attached"), record.get("judgement"),
+                record.get("criteria_text"), record.get("performed_date")]
+        exceed = _number(record.get("result_text")) > fallback
+        bad_judge = record.get("judgement") != "적합"
+        for col, value in enumerate(vals):
+            if col in (2, 3, 6):
+                fmt = left_fmt
+            else:
+                fmt = center_fmt
+            if (col == 3 and exceed) or (col == 5 and bad_judge):
+                fmt = red_left if col in (2, 3, 6) else red_center
+            data_ws.write(row_idx, col, value or "", fmt)
+
+    data_ws.freeze_panes(header_row, 0)
+
+    # --- Sheet 2: 간소화된 데이터 ---
+    simple_headers = ["No.", "관리번호", "측정 위치", "점검결과 (mg/m³)", "허용기준", "Performed Date"]
+    simple_ws = wb.add_worksheet("간소화된 데이터")
+    simple_ws.merge_range(0, 0, 0, len(simple_headers) - 1, title, title_fmt)
+    for col, header in enumerate(simple_headers):
+        simple_ws.write(header_row - 1, col, header, header_fmt)
+
+    simple_widths = {"A": 8, "B": 14, "C": 28, "D": 22, "E": 16, "F": 16}
+    for letter, w in simple_widths.items():
+        simple_ws.set_column(ord(letter) - 65, ord(letter) - 65, w)
+
+    for row_offset, record in enumerate(_sorted(records)):
+        row_idx = header_row + row_offset
+        vals = [record.get("no"), record.get("management_number"), record.get("location"),
+                _number(record.get("result_text")), _criteria_number(record.get("criteria_text"), fallback),
+                record.get("performed_date")]
+        for col, value in enumerate(vals):
+            fmt = left_fmt if col == 2 else center_fmt
+            if isinstance(value, (int, float)):
+                simple_ws.write_number(row_idx, col, value, fmt)
+            else:
+                simple_ws.write(row_idx, col, value or "", fmt)
+
+    simple_ws.freeze_panes(header_row, 0)
+
+    # --- Sheet 3: 피벗 차트 ---
+    categories, dates, matrix_values = _matrix(_sorted(records), "result_text", ("management_number", "location"))
     limits = [(f"허용기준 ≤ {_criteria_number(record.get('criteria_text'), fallback):g}", _criteria_number(record.get("criteria_text"), fallback)) for record in _sorted(records)]
     limits = list(dict.fromkeys(limits))
-    y_max = _round_up(max([value or 0 for value in values.values()] + [value for _, value in limits]), 1 if is_oil else 10)
-    _add_excel_chart(
-        chart_sheet,
-        "G3" if is_oil else "F3",
+    y_max = _round_up(max([value or 0 for value in matrix_values.values()] + [value for _, value in limits]), 1 if is_oil else 10)
+    _add_xlsx_chart(
+        wb,
+        "피벗 차트",
         chart_title,
         categories,
         dates,
-        values,
+        matrix_values,
         limits,
         y_max,
         "점검결과 (mg/m³)",
+        chart_cell="A10" if not is_oil else "A10",
     )
-    figure = _plot_chart(chart_paths[0], chart_title, categories, dates, values, limits, y_max)
-    return wb, [figure]
+
+    wb.close()
+
+    # matplotlib PNG/PDF charts
+    figure = _plot_chart(chart_paths[0], chart_title, categories, dates, matrix_values, limits, y_max)
+    return [figure]
 
 
 def _generate_airborne(records, output_path, chart_paths):
-    wb = Workbook()
-    data = wb.active
-    data.title = "데이터"
+    wb = xlsxwriter.Workbook(str(output_path))
+    title_fmt = wb.add_format(TITLE_FORMAT)
+    note_fmt = wb.add_format(NOTE_FORMAT)
+    header_fmt = wb.add_format(HEADER_FORMAT)
+    center_fmt = wb.add_format(CENTER_FORMAT)
+    left_fmt = wb.add_format(LEFT_FORMAT)
+    red_center = wb.add_format({**CENTER_FORMAT, **THIN_BORDER, "bg_color": "#FF9999"})
+    red_left = wb.add_format({**LEFT_FORMAT, **THIN_BORDER, "bg_color": "#FF9999"})
+
+    # --- Sheet 1: 데이터 ---
     note = "허용기준 :\n- Grade A: 0.5μm 이상 입자수: 23개/m³ 이하, 5μm 이상 입자수: 4개/m³ 이하\n- Grade B: 0.5μm 이상 입자수: 627개/m³ 이하, 5μm 이상 입자수: 13개/m³ 이하\n- Grade C: 0.5μm 이상 입자수: 23,402개/m³ 이하, 5μm 이상 입자수: 1,540개/m³ 이하\n- Grade D: 0.5μm 이상 입자수: 141,390개/m³ 이하, 5μm 이상 입자수: 8,183개/m³ 이하"
-    _title(data, "부유입자 측정 일지", 16, 5, note)
     headers = ["No.", "관리번호", "측정 위치", "Grade", "0.5 μm 이상 부유입자 수/m³", "5.0 μm 이상 부유입자 수/m³", "판정", "Performed Date"]
     headers += [f"{grade} Grade 경고기준 (0.5㎛)" for grade in "ABCD"]
     headers += [f"{grade} Grade 경고기준 (5.0㎛)" for grade in "ABCD"]
-    _headers(data, 5, headers)
-    for row_index, record in enumerate(_sorted(records), start=6):
-        values = [record.get("no"), record.get("management_number"), record.get("location"), record.get("grade"), _number(record.get("particle_05")), _number(record.get("particle_50")), record.get("judgement"), record.get("performed_date")]
-        values += [PARTICLE_LIMITS["0.5"][grade] for grade in "ABCD"]
-        values += [PARTICLE_LIMITS["5.0"][grade] for grade in "ABCD"]
-        for column, value in enumerate(values, start=1):
-            _style(data.cell(row_index, column, value), left=column == 3)
-        grade = str(record.get("grade", "")).upper()
-        if _number(record.get("particle_05")) > PARTICLE_LIMITS["0.5"].get(grade, math.inf):
-            data.cell(row_index, 5).fill = RED
-        if _number(record.get("particle_50")) > PARTICLE_LIMITS["5.0"].get(grade, math.inf):
-            data.cell(row_index, 6).fill = RED
-        if record.get("judgement") != "적합":
-            data.cell(row_index, 7).fill = RED
-    _widths(data, {"A": 8, "B": 14, "C": 28, "D": 9, "E": 24, "F": 24, "G": 12, "H": 16, "I": 20, "J": 20, "K": 20, "L": 20, "M": 20, "N": 20, "O": 20, "P": 20})
-    data.freeze_panes = "A6"
 
+    data_ws = wb.add_worksheet("데이터")
+    data_ws.merge_range(0, 0, 0, len(headers) - 1, "부유입자 측정 일지", title_fmt)
+    data_ws.merge_range(1, 0, 1, len(headers) - 1, note, note_fmt)
+    data_ws.set_row(1, 72)
+    for col, header in enumerate(headers):
+        data_ws.write(4, col, header, header_fmt)
+
+    col_widths = {"A": 8, "B": 14, "C": 28, "D": 9, "E": 24, "F": 24, "G": 12, "H": 16}
+    for letter, w in col_widths.items():
+        data_ws.set_column(ord(letter) - 65, ord(letter) - 65, w)
+    for col_idx in range(8, 16):
+        data_ws.set_column(col_idx, col_idx, 20)
+
+    for row_offset, record in enumerate(_sorted(records)):
+        row_idx = 5 + row_offset
+        grade = str(record.get("grade", "")).upper()
+        p05 = _number(record.get("particle_05"))
+        p50 = _number(record.get("particle_50"))
+        vals = [record.get("no"), record.get("management_number"), record.get("location"),
+                record.get("grade"), p05, p50, record.get("judgement"), record.get("performed_date")]
+        vals += [PARTICLE_LIMITS["0.5"][g] for g in "ABCD"]
+        vals += [PARTICLE_LIMITS["5.0"][g] for g in "ABCD"]
+        for col, value in enumerate(vals):
+            fmt = left_fmt if col == 2 else center_fmt
+            if (col == 4 and p05 > PARTICLE_LIMITS["0.5"].get(grade, math.inf)) or \
+               (col == 5 and p50 > PARTICLE_LIMITS["5.0"].get(grade, math.inf)) or \
+               (col == 6 and record.get("judgement") != "적합"):
+                fmt = red_left if col == 2 else red_center
+            if isinstance(value, (int, float)):
+                data_ws.write_number(row_idx, col, value, fmt)
+            else:
+                data_ws.write(row_idx, col, value or "", fmt)
+
+    data_ws.freeze_panes(5, 0)
+
+    # --- Chart sheets ---
     latest_date = max((_date_key(record.get("performed_date")) for record in records), default=(0, 0, 0))
     selected_grades = {"A", "B"} if latest_date[1] == 2 else None
     figures = []
@@ -313,24 +370,26 @@ def _generate_airborne(records, output_path, chart_paths):
         ("0.5", "particle_05", "Pivot 0.5", "PivotChart 0.5 ㎛", chart_paths[0]),
         ("5.0", "particle_50", "Pivot 5.0", "PivotChart 5.0 ㎛", chart_paths[1]),
     ]:
-        sheet = wb.create_sheet(sheet_name)
-        categories, dates, values = _matrix(_sorted(records), field, ("grade", "management_number", "location"), selected_grades)
+        categories, dates, matrix_values = _matrix(_sorted(records), field, ("grade", "management_number", "location"), selected_grades)
         grades = list(dict.fromkeys(category[0] for category in categories))
         limits = [(f"{grade} Grade 경고기준 = {PARTICLE_LIMITS[particle_size][grade]:,}", PARTICLE_LIMITS[particle_size][grade]) for grade in grades if grade in PARTICLE_LIMITS[particle_size]]
-        y_max = _round_up(max([value or 0 for value in values.values()] + [value for _, value in limits]), 10)
-        _add_excel_chart(
-            sheet,
-            "A25",
+        y_max = _round_up(max([value or 0 for value in matrix_values.values()] + [value for _, value in limits]), 10)
+        _add_xlsx_chart(
+            wb,
+            sheet_name,
             chart_title,
             categories,
             dates,
-            values,
+            matrix_values,
             limits,
             y_max,
             f"{particle_size} μm 이상 부유입자 수/m³",
+            chart_cell="A25",
         )
-        figures.append(_plot_chart(image_path, chart_title, categories, dates, values, limits, y_max))
-    return wb, figures
+        figures.append(_plot_chart(image_path, chart_title, categories, dates, matrix_values, limits, y_max))
+
+    wb.close()
+    return figures
 
 
 def generate_workbook(test_type, records, output_dir, job_id):
@@ -344,10 +403,9 @@ def generate_workbook(test_type, records, output_dir, job_id):
         ]
     excel_path = output_dir / f"{job_id}_{TEST_TYPES[test_type]['filename']}"
     if test_type in ("oil", "moisture"):
-        workbook, figures = _generate_oil_or_moisture(test_type, records, excel_path, chart_paths)
+        figures = _generate_oil_or_moisture(test_type, records, excel_path, chart_paths)
     else:
-        workbook, figures = _generate_airborne(records, excel_path, chart_paths)
-    workbook.save(excel_path)
+        figures = _generate_airborne(records, excel_path, chart_paths)
     pdf_path = output_dir / f"{job_id}_{test_type}_charts.pdf"
     with PdfPages(pdf_path) as pdf:
         for figure in figures:
