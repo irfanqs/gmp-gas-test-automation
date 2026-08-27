@@ -63,7 +63,10 @@ def extract():
             upload.save(path)
             try:
                 pages = online_ocr_pdf(path, test_type) if ocr_mode == "online" else ocr_pdf(path, endpoint)
-                records.extend(parse_document(test_type, pages, upload.filename))
+                parsed = parse_document(test_type, pages, upload.filename)
+                if not parsed:
+                    errors.append(f"{upload.filename}: OCR berhasil, tetapi format tabel tidak dikenali parser.")
+                records.extend(parsed)
             except Exception as error:
                 errors.append(f"{upload.filename}: {error}")
     finally:

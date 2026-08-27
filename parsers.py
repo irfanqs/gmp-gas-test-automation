@@ -161,6 +161,10 @@ def _value(row, index):
     return row[index].strip() if index is not None and index < len(row) else ""
 
 
+def _is_row_number(value):
+    return bool(re.fullmatch(r"\s*\d+\s*[.)]?\s*", str(value or "")))
+
+
 def _deduplicate(records):
     """Keep the first occurrence when OCR repeats a measurement row with spacing changes."""
     unique = []
@@ -181,7 +185,7 @@ def _header_and_rows(table):
     if header is None:
         return None, []
     data_start = header_index + 1
-    while data_start < len(table) and not (table[data_start] and re.fullmatch(r"\d+", _value(table[data_start], 0))):
+    while data_start < len(table) and not (table[data_start] and _is_row_number(_value(table[data_start], 0))):
         data_start += 1
     # DeepSeek commonly represents the Particle header across two HTML rows.
     # Joining them preserves labels such as "0.5 μm 이상 부유입자 수/m³".
@@ -195,7 +199,7 @@ def _header_and_rows(table):
     ]
     rows = []
     for row in table[data_start:]:
-        if row and re.fullmatch(r"\d+", _value(row, 0)):
+        if row and _is_row_number(_value(row, 0)):
             rows.append(row)
     return header, rows
 
