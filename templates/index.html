@@ -31,7 +31,7 @@
     <header class="topbar">
       <div class="brand">GMP Automation Gas Test</div>
       <div style="display:flex; align-items:center; gap:16px;">
-        {% if ocr_mode == 'online' %}<a class="mode-link" href="{{ url_for('offline') }}" data-i18n="switchOffline">→ Use Offline OCR</a>{% endif %}
+        {% if ocr_mode == 'online' %}<a class="mode-link" href="{{ url_for('offline') }}" data-i18n="switchOffline">→ Use Offline OCR</a>{% else %}<a class="mode-link" href="{{ url_for('online') }}" data-i18n="switchOnline">Use Online OCR</a>{% endif %}
         <div class="language" aria-label="Language selector"><button class="active" type="button" data-language="en">EN</button><button type="button" data-language="ko">한국어</button></div>
       </div>
     </header>
@@ -84,6 +84,6 @@
       </div>
     </div>
   </main>
-  <script src="{{ url_for('static', filename='app.js', v='6c95ea2') }}"></script>
+  <script src="{{ url_for('static', filename='app.js', v='remove-files-2') }}"></script>
 </body>
 </html>
