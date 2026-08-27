@@ -24,6 +24,8 @@ Supported measurements:
 
 Open `http://127.0.0.1:5005/online`.
 
+This branch listens on port `5005`. The companion `gmp-offline` branch listens on port `5006`. To run both applications at the same time, launch each branch from a separate checkout or Git worktree.
+
 Online OCR sends rendered PDF pages to Anthropic in one request. The final page also includes a cropped signature/date detail to improve handwritten date recognition. Claude returns structured JSON, which is validated before records are shown for review.
 
 Create a local `.env` file:
@@ -70,7 +72,7 @@ START_WINDOWS.bat
 
 The startup scripts create `.venv`, install `requirements.txt`, open the browser, and run the application on port `5005`.
 
-On the first Windows run, `START_WINDOWS.bat` also creates `.env` and asks for the Anthropic API key. The key is stored locally as `ANTHROPIC_API_KEY` and is not requested again on later runs unless the value is removed from `.env`.
+`START_WINDOWS.bat` is kept in sync with the file on `main`. On the first Windows run, it also creates `.env` and asks for the Anthropic API key. The key is stored locally as `ANTHROPIC_API_KEY` and is not requested again on later runs unless the value is removed from `.env`.
 
 ### Manual Start
 
