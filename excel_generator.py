@@ -11,6 +11,7 @@ from matplotlib import font_manager
 from matplotlib.backends.backend_pdf import PdfPages
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, LineChart, Reference
+from openpyxl.chart.axis import ChartLines
 from openpyxl.chart.label import DataLabelList
 from openpyxl.chart.data_source import AxDataSource, StrData, StrRef, StrVal
 from openpyxl.utils import get_column_letter
@@ -168,11 +169,13 @@ def _add_excel_chart(ws, chart_row, title, categories, dates, values, limits, y_
     bar.y_axis.scaling.min = 0
     bar.y_axis.scaling.max = y_max
     bar.y_axis.majorUnit = _chart_major_unit(y_max)
-    bar.y_axis.majorGridlines = None
+    bar.y_axis.delete = False
+    bar.y_axis.majorGridlines = ChartLines()
     bar.y_axis.axPos = "l"
     bar.y_axis.tickLblPos = "nextTo"
+    bar.x_axis.delete = False
     bar.x_axis.axPos = "b"
-    bar.x_axis.tickLblPos = "low"
+    bar.x_axis.tickLblPos = "nextTo"
     bar.legend.position = "r"
     category_reference = Reference(ws, min_col=1, min_row=start + 1, max_row=data_end)
     charts = [bar]
