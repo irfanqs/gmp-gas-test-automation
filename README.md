@@ -1,34 +1,210 @@
-# Gas Test Log Generator
+# GMP Automation Gas Test
 
-Python web application that converts scanned Oil Content Measurement, Moisture Content Measurement, and Airborne Particle Measurement PDFs into Excel logs and charts.
+Flask web application that converts scanned Korean GMP gas-test PDFs into reviewable records, Excel workbooks, and downloadable charts.
 
-## Running the Application
+Supported measurements:
 
-1. For `/offline`, run DeepSeek-OCR on Kaggle and create an ngrok endpoint with the provided server. For `/online`, prepare an Anthropic API key.
-2. Run `START_MAC.sh` on macOS or `START_WINDOWS.bat` on Windows.
-3. Your browser will open `http://127.0.0.1:5005`.
-4. Open `/offline` for a DeepSeek ngrok URL or `/online` for an Anthropic API key, select a measurement type, and upload one or more PDFs of the same type.
-5. Review and correct extracted data before selecting **Generate Excel and Charts**.
+- Oil Content Measurement (`유분 측정 일지`)
+- Moisture Content Measurement (`수분 측정 일지`)
+- Airborne Particle Measurement (`부유입자 측정 일지`)
 
-## Data and Privacy
+## Features
 
-- PDFs are rendered locally, then each page is sent to the DeepSeek-OCR Kaggle/ngrok endpoint you provide.
-- Measurement results are stored locally in `data/gas_test_logs.sqlite3`, allowing later semesters to be combined with existing logs.
-- Temporary output files are stored in `outputs/`.
-- To clear local history, delete `data/gas_test_logs.sqlite3` while the application is not running.
+- Online OCR through Anthropic Claude.
+- Offline OCR through a DeepSeek-OCR Kaggle/ngrok endpoint.
+- English and Korean interface.
+- Additive multi-PDF upload for one measurement type at a time.
+- Duplicate upload selections are ignored, and selected files can be removed before extraction.
+- Reviewable and editable OCR results before export.
+- Excel generation with XlsxWriter.
+- Column charts with warning/acceptance limits rendered as line series.
+- JPG chart exports and a combined chart PDF.
+- Clean download names without internal job IDs.
+
+## OCR Modes
+
+### Online OCR
+
+Open `http://127.0.0.1:5005/online`.
+
+Online OCR sends rendered PDF pages to Anthropic in one request. The final page also includes a cropped signature/date detail to improve handwritten date recognition. Claude returns structured JSON, which is validated before records are shown for review.
+
+Create a local `.env` file:
+
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key
+```
+
+The `.env` file is ignored by Git. Never commit or share the API key.
+
+### Offline OCR
+
+Open `http://127.0.0.1:5005/offline`.
+
+Offline OCR renders each PDF page locally and sends it to the DeepSeek-OCR `/ocr` endpoint. Enter the active Kaggle/ngrok base URL in the interface, for example:
+
+```text
+https://example.ngrok-free.app
+```
+
+The application appends `/ocr` automatically. `kaggle_server.py` contains the FastAPI server used by the offline workflow and exposes `/health` and `/ocr` routes.
+
+## System Requirements
+
+- Python 3.10 or newer.
+- Poppler for rendering scanned PDF pages.
+- Internet access for online OCR or access to the configured DeepSeek-OCR endpoint.
+
+Install Poppler:
+
+```bash
+# macOS
+brew install poppler
+
+# Ubuntu or Debian
+sudo apt install poppler-utils
+```
+
+On Windows, install Poppler and add its `Library\bin` directory to `PATH`.
+
+## Installation
+
+### Automatic Start
+
+macOS:
+
+```bash
+./START_MAC.sh
+```
+
+Windows:
+
+```bat
+START_WINDOWS.bat
+```
+
+The startup scripts create `.venv`, install `requirements.txt`, open the browser, and run the application on port `5005`.
+
+### Manual Start
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python app.py
+```
+
+Windows activation:
+
+```bat
+.venv\Scripts\activate
+```
+
+Open `http://127.0.0.1:5005`. The root route redirects to `/online`.
+
+## Workflow
+
+1. Choose Online OCR or Offline OCR from the top navigation.
+2. Select Oil, Moisture, or Airborne Particle.
+3. Select or drag one or more PDFs from the same measurement type.
+4. Add more PDFs in later selections if needed; new files are appended to the list.
+5. Remove unwanted files with the red cross button.
+6. Select **Extract Data**.
+7. Review and correct OCR values, especially handwritten dates and measurements.
+8. Select **Generate Excel and Charts**.
+9. Download the Excel workbook, combined chart PDF, or individual chart JPG files.
+
+Generating Excel does not call Claude. Anthropic usage only occurs during **Extract Data** in the online workflow.
 
 ## Output
 
-- **Oil:** `데이터`, `간소화된 데이터`, `피벗 차트`
-- **Moisture:** `데이터`, `간소화된 데이터`, `피벗 차트`
-- **Airborne:** `데이터`, `Pivot 0.5`, `Pivot 5.0`
+Each export contains only the records reviewed in the current upload batch. Previous local records are not appended to the generated workbook.
 
-In addition to the Excel workbook, the application generates a PNG for every chart and a combined chart PDF.
+Oil workbook:
 
-## System Dependencies
+- `데이터`
+- `간소화된 데이터`
+- `피벗 차트`
 
-Scanned PDFs require Poppler so that `pdf2image` can render their pages.
+Moisture workbook:
 
-- macOS: `brew install poppler`
-- Ubuntu/Debian: `sudo apt install poppler-utils`
-- Windows: install Poppler and add its `Library\bin` directory to `PATH`.
+- `데이터`
+- `간소화된 데이터`
+- `피벗 차트`
+
+Airborne workbook:
+
+- `데이터`
+- `Pivot 0.5`
+- `Pivot 5.0`
+
+Airborne creates separate `0.5 μm` and `5.0 μm` JPG downloads. Its charts are placed dynamically two blank rows after their source tables.
+
+Generated files are stored in `outputs/`. Server filenames include an internal job ID to prevent collisions, but browser downloads use clean measurement-log names.
+
+## Local Data
+
+Reviewed records are also stored locally in:
+
+```text
+data/gas_test_logs.sqlite3
+```
+
+The database is retained as local history, but it is not merged into the current Excel export. To clear the history, stop the application and delete `data/gas_test_logs.sqlite3`.
+
+Temporary uploaded PDFs are removed after OCR processing. The following paths are ignored by Git:
+
+- `.env`
+- `.venv/`
+- `uploads/`
+- `outputs/`
+- `data/`
+
+## Privacy
+
+Online mode sends rendered PDF pages and a cropped date area to Anthropic. Offline mode sends rendered pages to the DeepSeek-OCR endpoint entered by the user. PDF rendering, review, storage, Excel generation, JPG generation, and PDF chart generation occur locally.
+
+## Validation
+
+Run basic syntax checks without performing OCR:
+
+```bash
+.venv/bin/python -m py_compile app.py online_client.py deepseek_client.py parsers.py storage.py excel_generator.py
+node --check static/app.js
+```
+
+For an end-to-end test, upload a sample PDF through the interface, verify the review table, generate the workbook, and inspect each Excel sheet and chart.
+
+## Troubleshooting
+
+### `422 Unprocessable Entity`
+
+OCR completed, but no valid measurement records were parsed. Confirm that the selected measurement type matches the PDF. Restart the Flask server after pulling code changes. Online OCR expects structured JSON; offline OCR expects table-based Markdown or HTML from DeepSeek-OCR.
+
+### `ANTHROPIC_API_KEY is not configured`
+
+Add `ANTHROPIC_API_KEY` to `.env`, then restart the application.
+
+### PDF rendering fails
+
+Install Poppler and confirm `pdftoppm` is available on `PATH`.
+
+### Offline endpoint fails
+
+Open `<endpoint>/health` and confirm it returns a successful response. Ensure the ngrok session and Kaggle runtime are still active.
+
+### Browser shows an older interface
+
+Restart the Flask process and reload the page. Static JavaScript URLs include cache-busting versions, but a running process may still serve an older template until restarted.
+
+## Main Files
+
+- `app.py`: Flask routes for online/offline pages, extraction, generation, and downloads.
+- `online_client.py`: Anthropic OCR and structured JSON prompt.
+- `deepseek_client.py`: DeepSeek-OCR endpoint client.
+- `parsers.py`: Structured JSON and HTML/Markdown table parsers.
+- `excel_generator.py`: XlsxWriter workbooks plus Matplotlib JPG/PDF charts.
+- `storage.py`: Local SQLite history.
+- `templates/index.html`: Application interface.
+- `static/app.js`: Upload management, review table, generation, and downloads.
+- `kaggle_server.py`: DeepSeek-OCR FastAPI server for Kaggle.
