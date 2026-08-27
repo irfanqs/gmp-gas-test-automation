@@ -98,7 +98,10 @@ def generate():
 
 @app.get("/download/<path:filename>")
 def download(filename):
-    return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
+    name = Path(filename).name
+    job_id, separator, export_name = name.partition("_")
+    download_name = export_name if separator and len(job_id) == 32 and all(character in "0123456789abcdef" for character in job_id) else name
+    return send_from_directory(OUTPUT_DIR, filename, as_attachment=True, download_name=download_name)
 
 
 if __name__ == "__main__":
