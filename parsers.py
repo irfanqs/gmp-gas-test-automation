@@ -223,12 +223,14 @@ def _parse_oil_or_moisture(pages, test_type):
             result = _value(row, result_col)
             if not result:
                 continue
+            # OCR may omit the photo header while retaining its data column.
+            row_photo_col = photo_col if photo_col is not None else (result_col + 1 if len(row) > result_col + 1 else None)
             records.append({
                 "no": _value(row, no_col),
                 "management_number": _value(row, management_col),
                 "location": _value(row, location_col),
                 "result_text": result,
-                "photo_attached": _checkbox_value(_value(row, photo_col)),
+                "photo_attached": _checkbox_value(_value(row, row_photo_col)),
                 "judgement": judgement,
                 "criteria_text": criteria,
                 "performed_date": performed_date,

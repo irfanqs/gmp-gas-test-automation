@@ -86,8 +86,8 @@ def generate():
         return jsonify(error="Data untuk pembuatan Excel tidak valid."), 400
 
     job_id = uuid.uuid4().hex
-    all_records = save_and_load(test_type, records)
-    result = generate_workbook(test_type, all_records, OUTPUT_DIR, job_id)
+    save_and_load(test_type, records)
+    result = generate_workbook(test_type, records, OUTPUT_DIR, job_id)
     return jsonify(
         excel_url=f"/download/{result['excel'].name}",
         charts=[
@@ -95,7 +95,7 @@ def generate():
             for chart in result["charts"]
         ],
         pdf_url=f"/download/{result['pdf'].name}",
-        total_records=len(all_records),
+        total_records=len(records),
     )
 
 
