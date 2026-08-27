@@ -26,7 +26,7 @@
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; } }
   </style>
 </head>
-<body>
+<body data-ocr-mode="{{ ocr_mode }}">
   <main class="shell">
     <header class="topbar">
       <div class="brand">GMP Automation Gas Test</div>
@@ -56,7 +56,7 @@
           {% endif %}
 
           <section class="panel">
-            <div class="panel-header"><div><h2 data-i18n="testTitle">2. Measurement Type</h2><p data-i18n="testCopy">Upload PDFs from one measurement type at a time.</p></div></div>
+            <div class="panel-header"><div><h2 data-i18n="testTitle">{{ 1 if ocr_mode == 'online' else 2 }}. Measurement Type</h2><p data-i18n="testCopy">Upload PDFs from one measurement type at a time.</p></div></div>
             <div class="test-grid">
               <div class="test-choice"><input id="oil" name="test_type" type="radio" value="oil" required><label for="oil"><span class="choice-index">01</span><span class="choice-title" data-i18n="oilTitle">Oil Content</span><span class="choice-copy" data-i18n="oilCopy">유분 측정 일지</span></label></div>
               <div class="test-choice"><input id="moisture" name="test_type" type="radio" value="moisture"><label for="moisture"><span class="choice-index">02</span><span class="choice-title" data-i18n="moistureTitle">Moisture Content</span><span class="choice-copy" data-i18n="moistureCopy">수분 측정 일지</span></label></div>
@@ -65,7 +65,7 @@
           </section>
 
           <section class="panel">
-            <div class="panel-header"><div><h2 data-i18n="uploadTitle">3. Scanned PDFs</h2><p data-i18n="uploadCopy">Multiple files are allowed. Data from future uploads is added to the same local log.</p></div></div>
+            <div class="panel-header"><div><h2 data-i18n="uploadTitle">{{ 2 if ocr_mode == 'online' else 3 }}. Scanned PDFs</h2><p data-i18n="uploadCopy">Multiple files are allowed. Data from future uploads is added to the same local log.</p></div></div>
             <label class="dropzone" id="dropzone" for="pdf_files"><span class="drop-icon">PDF</span><strong data-i18n="dropTitle">Choose PDF files or drop them here</strong><span data-i18n="dropCopy">Only scanned measurement documents are supported.</span></label>
             <input id="pdf_files" name="pdf_files" type="file" accept="application/pdf" multiple required hidden>
             <div class="file-meta" id="file-meta" data-i18n="noFiles">No files selected.</div>
@@ -75,7 +75,7 @@
         </form>
 
         <section class="panel" id="review">
-          <div class="panel-header"><div><h2 data-i18n="reviewTitle">4. Review Before Export</h2><p data-i18n="reviewCopy">Correct any uncertain OCR value before creating the final log.</p></div></div>
+          <div class="panel-header"><div><h2 data-i18n="reviewTitle">{{ 3 if ocr_mode == 'online' else 4 }}. Review Before Export</h2><p data-i18n="reviewCopy">Correct any uncertain OCR value before creating the final log.</p></div></div>
           <div id="table"></div>
           <button class="primary" id="generate-button" type="button" data-i18n="generate">Generate Excel and Charts</button>
           <div id="downloads" class="downloads"></div>
