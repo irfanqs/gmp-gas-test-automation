@@ -30,8 +30,8 @@ _configure_korean_font()
 
 THICK = 1.5
 THIN_BORDER = {"border": 1, "border_color": "#A8B8B4"}
-CENTER_FORMAT = {"align": "center", "valign": "vcenter", "text_wrap": True}
-LEFT_FORMAT = {"align": "left", "valign": "vcenter", "text_wrap": True}
+CENTER_FORMAT = {"align": "center", "valign": "vcenter", "text_wrap": True, **THIN_BORDER}
+LEFT_FORMAT = {"align": "left", "valign": "vcenter", "text_wrap": True, **THIN_BORDER}
 HEADER_FORMAT = {**CENTER_FORMAT, "bold": True, "bg_color": "#D9EAF7", **THIN_BORDER}
 TITLE_FORMAT = {"bold": True, "font_size": 16, "align": "center", "valign": "vcenter"}
 NOTE_FORMAT = {"text_wrap": True, "valign": "vcenter"}
@@ -99,6 +99,8 @@ def _add_xlsx_chart(wb, sheet_name, title, categories, dates, values, limits, y_
         ws.set_column(col, col, 16)
 
     header_fmt = wb.add_format({**HEADER_FORMAT})
+    category_fmt = wb.add_format({**LEFT_FORMAT})
+    value_fmt = wb.add_format({**CENTER_FORMAT})
 
     start = 0
     ws.write(start, 0, "측정 위치 / 관리번호", header_fmt)
@@ -109,12 +111,12 @@ def _add_xlsx_chart(wb, sheet_name, title, categories, dates, values, limits, y_
         ws.write(start, offset, label, header_fmt)
 
     for row_index, category in enumerate(categories, start=start + 1):
-        ws.write(row_index, 0, "\n".join(reversed(category)))
+        ws.write(row_index, 0, "\n".join(reversed(category)), category_fmt)
         ws.set_row(row_index, 30)
         for offset, date in enumerate(dates, start=category_width):
-            ws.write_number(row_index, offset, values[(category, date)] or 0)
+            ws.write_number(row_index, offset, values[(category, date)] or 0, value_fmt)
         for offset, (_, limit_val) in enumerate(limits, start=limit_start):
-            ws.write_number(row_index, offset, limit_val)
+            ws.write_number(row_index, offset, limit_val, value_fmt)
 
     chart = wb.add_chart({"type": "column"})
     last_row = start + len(categories)
