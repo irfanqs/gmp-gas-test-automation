@@ -40,10 +40,8 @@ RED_FORMAT = {"bg_color": "#FF9999"}
 
 
 def _number(value):
-    try:
-        return float(str(value).replace(",", "").split()[0])
-    except (ValueError, IndexError):
-        return 0.0
+    match = re.search(r"-?[\d,]+(?:\.\d+)?", str(value or ""))
+    return float(match.group(0).replace(",", "")) if match else 0.0
 
 
 def _format_mg_text(value):
@@ -68,20 +66,37 @@ def _criteria_number(text, fallback):
     return numbers[-1] if numbers else fallback
 
 
+def _identity_text(value):
+    return re.sub(r"[^0-9a-z가-힣]+", "", str(value or "").lower())
+
+
+def _category_identity(row, category_fields):
+    grade = _identity_text(row.get("grade")) if "grade" in category_fields else ""
+    if "management_number" in category_fields:
+        management_number = _identity_text(row.get("management_number"))
+        if management_number:
+            return grade, "management", management_number
+        location = str(row.get("location", ""))
+        room_codes = re.findall(r"\(([^)]+)\)", location)
+        location_key = _identity_text(room_codes[-1] if room_codes else location)
+        return grade, "location", location_key
+    return tuple(_identity_text(row.get(field)) for field in category_fields)
+
+
 def _matrix(records, value_field, category_fields, selected_grades=None):
     filtered = [row for row in records if not selected_grades or row.get("grade") in selected_grades]
     dates = sorted({str(row.get("performed_date", "")) for row in filtered}, key=_date_key, reverse=True)
-    categories = []
+    category_map = {}
     for row in filtered:
         category = tuple(str(row.get(field, "")) for field in category_fields)
-        if category not in categories:
-            categories.append(category)
+        category_map.setdefault(_category_identity(row, category_fields), category)
+    categories = list(category_map.values())
     values = {}
-    for category in categories:
+    for identity, category in category_map.items():
         for date in dates:
             matches = [
                 _number(row.get(value_field)) for row in filtered
-                if tuple(str(row.get(field, "")) for field in category_fields) == category
+                if _category_identity(row, category_fields) == identity
                 and str(row.get("performed_date", "")) == date
             ]
             values[(category, date)] = sum(matches) / len(matches) if matches else None
@@ -123,7 +138,11 @@ def _add_xlsx_chart(wb, sheet_name, title, categories, dates, values, limits, y_
         ws.write(row_index, 0, "\n".join(reversed(category)), category_fmt)
         ws.set_row(row_index, 30)
         for offset, date in enumerate(dates, start=category_width):
-            ws.write_number(row_index, offset, values[(category, date)] or 0, value_fmt)
+            value = values[(category, date)]
+            if value is None:
+                ws.write_blank(row_index, offset, None, value_fmt)
+            else:
+                ws.write_number(row_index, offset, value, value_fmt)
         for offset, (_, limit_val) in enumerate(limits, start=limit_start):
             ws.write_number(row_index, offset, limit_val, value_fmt)
 
@@ -156,7 +175,7 @@ def _add_xlsx_chart(wb, sheet_name, title, categories, dates, values, limits, y_
     chart.set_title({"name": title})
     chart.set_x_axis({
         "name": "측정 위치 / 관리번호",
-        "num_font": {"size": 9},
+        "num_font": {"size": 9, "rotation": 0},
     })
     chart.set_y_axis({
         "name": y_axis_title,
@@ -165,7 +184,7 @@ def _add_xlsx_chart(wb, sheet_name, title, categories, dates, values, limits, y_
         "major_unit": _chart_major_unit(y_max),
     })
     chart.set_legend({"position": "right"})
-    chart.set_size({"width": 1000, "height": 520})
+    chart.set_size({"width": min(1600, max(1100, 400 + len(categories) * 140)), "height": 560})
     chart.set_plotarea({"border": {"none": True}})
 
     ws.insert_chart(chart_cell, chart)
