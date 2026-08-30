@@ -1,6 +1,7 @@
 """Create GMP gas-test Excel workbooks and matching downloadable chart files."""
 
 import math
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -43,6 +44,14 @@ def _number(value):
         return float(str(value).replace(",", "").split()[0])
     except (ValueError, IndexError):
         return 0.0
+
+
+def _format_mg_text(value):
+    """Normalize OCR spacing for mg/m³ measurements without changing the value."""
+    text = str(value or "").strip()
+    text = re.sub(r"(?<=\d)\s*mg\s*/\s*m[³3]", " mg/m³", text, flags=re.IGNORECASE)
+    text = re.sub(r"(mg/m³)\s*(이하|이상)", r"\1 \2", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _date_key(value):
@@ -250,8 +259,8 @@ def _generate_oil_or_moisture(test_type, records, output_path, chart_paths):
     for row_offset, record in enumerate(_sorted(records)):
         row_idx = header_row + row_offset
         vals = [record.get("no"), record.get("management_number"), record.get("location"),
-                record.get("result_text"), record.get("photo_attached"), record.get("judgement"),
-                record.get("criteria_text"), record.get("performed_date")]
+                _format_mg_text(record.get("result_text")), record.get("photo_attached"), record.get("judgement"),
+                _format_mg_text(record.get("criteria_text")), record.get("performed_date")]
         exceed = _number(record.get("result_text")) > fallback
         bad_judge = record.get("judgement") != "적합"
         for col, value in enumerate(vals):
