@@ -112,6 +112,14 @@ def _number(value):
     return float(number) if "." in number else int(number)
 
 
+def _measurement_result(value):
+    """Correct vertical OCR glyphs only where a measurement digit must appear."""
+    text = str(value or "").strip()
+    one_glyph = r"[|Il!｜│┃]"
+    text = re.sub(rf"(?<=\.){one_glyph}(?=\s*(?:mg|㎎|이하|이상|$))", "1", text)
+    return re.sub(rf"\b0\s*{one_glyph}(?=\s*(?:mg|㎎))", "0.1", text)
+
+
 def _date(text):
     matches = re.findall(r"(20\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})", text)
     if not matches:
@@ -215,7 +223,7 @@ def _parse_json_records(pages, test_type):
         if not common["management_number"] or not common["location"]:
             continue
         if test_type in ("oil", "moisture"):
-            result = str(row.get("result_text", "")).strip()
+            result = _measurement_result(row.get("result_text", ""))
             if not result:
                 continue
             records.append({
@@ -277,7 +285,7 @@ def _parse_oil_or_moisture(pages, test_type):
         result_col = _column(header, ["점검결과"])
         photo_col = _column(header, ["측정사진", "사진첨부"])
         for row in rows:
-            result = _value(row, result_col)
+            result = _measurement_result(_value(row, result_col))
             if not result:
                 continue
             # OCR may omit the photo header while retaining its data column.
