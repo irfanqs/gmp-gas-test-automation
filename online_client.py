@@ -47,27 +47,31 @@ def ocr_pdf(pdf_path, test_type, dpi=200):
             "type": "image",
             "source": {"type": "base64", "media_type": "image/png", "data": _base64_png(image)},
         })
-        width, height = image.size
-        table_detail = image.crop((int(width * 0.02), int(height * 0.07), int(width * 0.98), int(height * 0.48)))
-        table_detail = ImageEnhance.Contrast(table_detail).enhance(1.35).filter(ImageFilter.SHARPEN)
+        if test_type == "airborne":
+            width, height = image.size
+            table_detail = image.crop((int(width * 0.02), int(height * 0.07), int(width * 0.98), int(height * 0.48)))
+            table_detail = ImageEnhance.Contrast(table_detail).enhance(1.35).filter(ImageFilter.SHARPEN)
+            content.extend([
+                {
+                    "type": "text",
+                    "text": (
+                        f"The next image is an enhanced close-up of the measurement table on page {page_number}. "
+                        "Use it only to verify handwritten values; it does not contain additional records."
+                    ),
+                },
+                {
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/png", "data": _base64_png(table_detail)},
+                },
+            ])
+    if images:
+        width, height = images[-1].size
+        date_detail = images[-1].crop((0, int(height * 0.68), int(width * 0.58), height))
         content.extend([
             {
                 "type": "text",
-                "text": (
-                    f"The next image is an enhanced close-up of the measurement table on page {page_number}. "
-                    "Use it only to verify handwritten values; it does not contain additional records."
-                ),
+                "text": "The next image is a close-up of the left-side Performed by signature and date from the final page.",
             },
-            {
-                "type": "image",
-                "source": {"type": "base64", "media_type": "image/png", "data": _base64_png(table_detail)},
-            },
-        ])
-    if images:
-        width, height = images[-1].size
-        date_detail = images[-1].crop((0, int(height * 0.68), width, height))
-        content.extend([
-            {"type": "text", "text": "The next image is a close-up of the signature and date area from the final page."},
             {
                 "type": "image",
                 "source": {"type": "base64", "media_type": "image/png", "data": _base64_png(date_detail)},
@@ -93,9 +97,11 @@ def ocr_pdf(pdf_path, test_type, dpi=200):
                 "Before returning JSON, compare each count with its Grade limit and checked row judgement. If they conflict, "
                 "re-inspect the close-up and transcribe the visible digits; do not change a clearly written value merely to fit the limit. "
                 "Set photo_attached to exactly Yes or No and judgement to exactly 적합 or 부적합. "
-                "Use performed_date from the handwritten Performed by date in YYYY.MM.DD format. "
+                "Use performed_date only from the handwritten left-side Performed by date in YYYY.MM.DD format; "
+                "never use the right-side Verified by date. "
                 "Cross-check repeated dates in the close-up and carefully distinguish handwritten 08 from 06. "
                 "Repeat the document-level criterion, judgement, and performed date in every record. "
+                "Read criteria_text only from the printed 허용기준 section, never from measurement-photo or checkbox text. "
                 "Use JSON numbers for particle_05 and particle_50. Do not return Markdown or explanatory text."
             ),
         }
