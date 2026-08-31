@@ -277,7 +277,7 @@ def _generate_oil_or_moisture(test_type, records, output_path, chart_paths):
 
     for row_offset, record in enumerate(_sorted(records)):
         row_idx = header_row + row_offset
-        vals = [record.get("no"), record.get("management_number"), record.get("location"),
+        vals = [row_offset + 1, record.get("management_number"), record.get("location"),
                 _format_mg_text(record.get("result_text")), record.get("photo_attached"), record.get("judgement"),
                 _format_mg_text(record.get("criteria_text")), record.get("performed_date")]
         exceed = _number(record.get("result_text")) > fallback
@@ -306,7 +306,7 @@ def _generate_oil_or_moisture(test_type, records, output_path, chart_paths):
 
     for row_offset, record in enumerate(_sorted(records)):
         row_idx = header_row + row_offset
-        vals = [record.get("no"), record.get("management_number"), record.get("location"),
+        vals = [row_offset + 1, record.get("management_number"), record.get("location"),
                 _number(record.get("result_text")), _criteria_number(record.get("criteria_text"), fallback),
                 record.get("performed_date")]
         for col, value in enumerate(vals):
@@ -377,7 +377,7 @@ def _generate_airborne(records, output_path, chart_paths):
         grade = str(record.get("grade", "")).upper()
         p05 = _number(record.get("particle_05"))
         p50 = _number(record.get("particle_50"))
-        vals = [record.get("no"), record.get("management_number"), record.get("location"),
+        vals = [row_offset + 1, record.get("management_number"), record.get("location"),
                 record.get("grade"), p05, p50, record.get("judgement"), record.get("performed_date")]
         vals += [PARTICLE_LIMITS["0.5"][g] for g in "ABCD"]
         vals += [PARTICLE_LIMITS["5.0"][g] for g in "ABCD"]
