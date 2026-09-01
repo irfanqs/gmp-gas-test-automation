@@ -1,4 +1,4 @@
-[![English](https://img.shields.io/badge/Language-English-2563EB)](README.md) [![한국어](https://img.shields.io/badge/언어-한국어-0B6E4F)](README.ko.md)
+[![English](https://img.shields.io/badge/Language-English-2563EB)](README.md) [![한국어](https://img.shields.io/badge/언어-한국어-0B6E4F)](README.kr.md)
 
 # GMP Automation Gas Test
 
